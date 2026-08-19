@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://metin2-remake.local/schema/packet.schema.json",
+  "title": "Metin2 Remake Packet Definitions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "protocol", "packets"],
+  "properties": {
+    "schema": { "const": 1 },
+    "protocol": { "type": "string", "minLength": 1 },
+    "packets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/packet" }
+    }
+  },
+  "$defs": {
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "opcode", "direction", "phase", "size", "fields"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+        "opcode": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "direction": {
+          "enum": ["client_to_server", "server_to_client", "bidirectional"]
+        },
+        "phase": {
+          "enum": ["handshake", "auth", "select", "loading", "game", "any"]
+        },
+        "size": { "enum": ["fixed", "variable"] },
+        "since": { "type": "integer", "minimum": 1 },
+        "until": { "type": "integer", "minimum": 1 },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "type": {
+          "enum": [
+            "u8", "i8", "u16le", "u16be", "i16le", "i16be",
+            "u32le", "u32be", "i32le", "i32be",
+            "u64le", "u64be", "i64le", "i64be",
+            "f32le", "f32be", "f64le", "f64be", "bool8",
+            "fixed_string", "string", "bytes", "array"
+          ]
+        },
+        "domainType": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9.]*$" },
+        "length": { "type": "integer", "minimum": 1 },
+        "lengthFrom": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "lengthType": {
+          "enum": ["u8", "u16le", "u16be", "u32le", "u32be"]
+        },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "encoding": { "enum": ["ascii", "utf8", "latin1"] },
+        "termination": { "enum": ["null", "none"] },
+        "trim": { "enum": ["null", "none"] },
+        "element": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "minLength": 1 },
+            "domainType": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
