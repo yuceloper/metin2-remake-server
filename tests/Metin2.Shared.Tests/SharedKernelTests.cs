@@ -37,6 +37,6 @@ public sealed class SharedKernelTests
 
         Assert.IsTrue(result.IsFailure);
         Assert.AreEqual(error, result.Error);
-        Assert.ThrowsExactly<InvalidOperationException>(() => _ = result.Value);
+        Assert.ThrowsException<InvalidOperationException>(() => _ = result.Value);
     }
 }
