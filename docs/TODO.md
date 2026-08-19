@@ -50,8 +50,8 @@
 - [x] Create `Metin2.Protocol.Generator`
 - [x] Parse packet definitions
 - [x] Generator diagnostics
-- [ ] Generate packet models
-- [ ] Generate opcode constants
+- [x] Generate packet models
+- [x] Generate opcode constants
 - [ ] Generate serializers
 - [ ] Generate deserializers
 - [ ] Generate packet registry
