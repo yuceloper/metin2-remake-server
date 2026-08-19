@@ -1,5 +1,6 @@
 using System.Text;
 using Metin2.Protocol.Generator.Diagnostics;
+using Metin2.Protocol.Generator.Generation;
 using Metin2.Protocol.Generator.Model;
 using Metin2.Protocol.Generator.Parsing;
 using Metin2.Protocol.Generator.Validation;
@@ -58,6 +59,7 @@ public sealed class PacketGenerator : IIncrementalGenerator
             }
 
             EmitManifest(sourceContext, validDocuments);
+            EmitPacketModels(sourceContext, validDocuments);
         });
     }
 
@@ -104,6 +106,15 @@ public sealed class PacketGenerator : IIncrementalGenerator
             """;
 
         context.AddSource("ProtocolManifest.g.cs", SourceText.From(source, Encoding.UTF8));
+    }
+
+    private static void EmitPacketModels(SourceProductionContext context, IReadOnlyList<PacketDocument> documents)
+    {
+        foreach (PacketDefinition packet in documents.SelectMany(static document => document.Packets))
+        {
+            string source = PacketModelEmitter.Emit(packet);
+            context.AddSource($"Packets.{packet.Name}.g.cs", SourceText.From(source, Encoding.UTF8));
+        }
     }
 
     private sealed class PacketFileResult
