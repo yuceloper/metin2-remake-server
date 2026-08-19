@@ -1,4 +1,6 @@
+using Metin2.Protocol.Generator.Generation;
 using Metin2.Protocol.Generator.Model;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Metin2.Protocol.Generator.Validation;
 
@@ -50,9 +52,17 @@ internal static class PacketDefinitionValidator
             {
                 failures.Add(new ValidationFailure("MissingPacketName", "Packet name is required."));
             }
-            else if (!packetNames.Add(packet.Name))
+            else
             {
-                failures.Add(new ValidationFailure("DuplicatePacketName", $"Packet name '{packet.Name}' is duplicated."));
+                if (!packetNames.Add(packet.Name))
+                {
+                    failures.Add(new ValidationFailure("DuplicatePacketName", $"Packet name '{packet.Name}' is duplicated."));
+                }
+
+                if (!SyntaxFacts.IsValidIdentifier(packet.Name))
+                {
+                    failures.Add(new ValidationFailure("InvalidGeneratedPacketIdentifier", $"Packet name '{packet.Name}' is not a valid C# identifier."));
+                }
             }
 
             if (packet.Opcode is < 0 or > ushort.MaxValue)
@@ -95,6 +105,7 @@ internal static class PacketDefinitionValidator
     private static void ValidateFields(PacketDefinition packet, ICollection<ValidationFailure> failures)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
+        var generatedNames = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (FieldDefinition field in packet.Fields)
         {
@@ -107,6 +118,16 @@ internal static class PacketDefinitionValidator
             if (!names.Add(field.Name))
             {
                 failures.Add(new ValidationFailure("DuplicateFieldName", $"Packet '{packet.Name}' contains duplicate field '{field.Name}'."));
+            }
+
+            string generatedName = PacketModelEmitter.ToPascalCase(field.Name);
+            if (!SyntaxFacts.IsValidIdentifier(generatedName))
+            {
+                failures.Add(new ValidationFailure("InvalidGeneratedFieldIdentifier", $"Packet '{packet.Name}' field '{field.Name}' generates invalid C# identifier '{generatedName}'."));
+            }
+            else if (!generatedNames.Add(generatedName))
+            {
+                failures.Add(new ValidationFailure("GeneratedFieldNameCollision", $"Packet '{packet.Name}' has multiple fields that generate C# identifier '{generatedName}'."));
             }
 
             if (string.IsNullOrWhiteSpace(field.Type))
