@@ -29,6 +29,28 @@ internal static class PacketDefinitionValidator
         "variable"
     };
 
+    private static readonly HashSet<string> WireTypes = new(StringComparer.Ordinal)
+    {
+        "i8", "u8",
+        "i16le", "i16be", "u16le", "u16be",
+        "i32le", "i32be", "u32le", "u32be",
+        "i64le", "i64be", "u64le", "u64be",
+        "f32le", "f32be", "f64le", "f64be",
+        "bool8", "fixed_string", "string", "bytes", "array"
+    };
+
+    private static readonly IReadOnlyDictionary<string, HashSet<string>> DomainWireTypes =
+        new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["AccountId"] = new(StringComparer.Ordinal) { "u32le", "u32be" },
+            ["CharacterId"] = new(StringComparer.Ordinal) { "u32le", "u32be" },
+            ["EntityId"] = new(StringComparer.Ordinal) { "u32le", "u32be" },
+            ["GuildId"] = new(StringComparer.Ordinal) { "u32le", "u32be" },
+            ["MonsterId"] = new(StringComparer.Ordinal) { "u32le", "u32be" },
+            ["ItemId"] = new(StringComparer.Ordinal) { "u64le", "u64be" },
+            ["MapId"] = new(StringComparer.Ordinal) { "i32le", "i32be" }
+        };
+
     public static IReadOnlyList<ValidationFailure> Validate(PacketDocument document)
     {
         var failures = new List<ValidationFailure>();
@@ -133,6 +155,22 @@ internal static class PacketDefinitionValidator
             if (string.IsNullOrWhiteSpace(field.Type))
             {
                 failures.Add(new ValidationFailure("MissingFieldType", $"Packet '{packet.Name}' field '{field.Name}' has no wire type."));
+            }
+            else if (!WireTypes.Contains(field.Type))
+            {
+                failures.Add(new ValidationFailure("UnsupportedWireType", $"Packet '{packet.Name}' field '{field.Name}' uses unsupported wire type '{field.Type}'."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(field.DomainType))
+            {
+                if (!DomainWireTypes.TryGetValue(field.DomainType!, out HashSet<string>? compatibleTypes))
+                {
+                    failures.Add(new ValidationFailure("UnsupportedDomainType", $"Packet '{packet.Name}' field '{field.Name}' uses unsupported domain type '{field.DomainType}'."));
+                }
+                else if (!compatibleTypes.Contains(field.Type))
+                {
+                    failures.Add(new ValidationFailure("DomainWireTypeMismatch", $"Packet '{packet.Name}' field '{field.Name}' maps domain type '{field.DomainType}' to incompatible wire type '{field.Type}'."));
+                }
             }
 
             bool isVariable = field.Type is "string" || (field.Type is "bytes" or "array" && field.LengthFrom is not null);
