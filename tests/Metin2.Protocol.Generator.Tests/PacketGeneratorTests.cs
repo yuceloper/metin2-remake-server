@@ -98,7 +98,79 @@ public sealed class PacketGeneratorTests
     }
 
     [TestMethod]
-    public void Generator_EmitsManifestForValidAdditionalFile()
+    public void Validator_RejectsGeneratedFieldNameCollision()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Collision
+                opcode: 3
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: foo_bar
+                    type: u8
+                  - name: foo-bar
+                    type: u8
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "GeneratedFieldNameCollision"));
+    }
+
+    [TestMethod]
+    public void Generator_EmitsManifestAndPacketModelForValidAdditionalFile()
+    {
+        GeneratorDriverRunResult runResult = RunGenerator(ValidYaml);
+
+        Assert.AreEqual(1, runResult.Results.Length);
+        Assert.IsTrue(runResult.Results[0].GeneratedSources.Any(static source => source.HintName == "ProtocolManifest.g.cs"));
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Ping.g.cs");
+        string generated = packetSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "public readonly partial record struct Ping(");
+        StringAssert.Contains(generated, "uint Value");
+        StringAssert.Contains(generated, "public const ushort Opcode = 1;");
+        StringAssert.Contains(generated, "public const string Direction = \"client_to_server\";");
+        StringAssert.Contains(generated, "public const string Phase = \"game\";");
+    }
+
+    [TestMethod]
+    public void Generator_UsesStrongDomainTypeInsteadOfRawWirePrimitive()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: CharacterMove
+                opcode: 16
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: character_id
+                    type: u32le
+                    domainType: CharacterId
+                  - name: rotation
+                    type: f32le
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.CharacterMove.g.cs");
+        string generated = packetSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "global::Metin2.Shared.Identity.CharacterId CharacterId");
+        StringAssert.Contains(generated, "float Rotation");
+        Assert.IsFalse(generated.Contains("uint CharacterId", StringComparison.Ordinal));
+    }
+
+    private static GeneratorDriverRunResult RunGenerator(string yaml)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText("namespace Consumer; public static class Marker { }");
         MetadataReference coreLibrary = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
@@ -110,16 +182,12 @@ public sealed class PacketGeneratorTests
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             generators: new[] { new PacketGenerator().AsSourceGenerator() },
-            additionalTexts: new AdditionalText[] { new InMemoryAdditionalText("test.packet.yml", ValidYaml) },
+            additionalTexts: new AdditionalText[] { new InMemoryAdditionalText("test.packet.yml", yaml) },
             parseOptions: (CSharpParseOptions)syntaxTree.Options);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation outputCompilation, out ImmutableArray<Diagnostic> diagnostics);
-        GeneratorDriverRunResult runResult = driver.GetRunResult();
-
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out ImmutableArray<Diagnostic> diagnostics);
         Assert.IsFalse(diagnostics.Any(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-        Assert.AreEqual(2, outputCompilation.SyntaxTrees.Count());
-        Assert.AreEqual(1, runResult.Results.Length);
-        Assert.IsTrue(runResult.Results[0].GeneratedSources.Any(static source => source.HintName == "ProtocolManifest.g.cs"));
+        return driver.GetRunResult();
     }
 
     private sealed class InMemoryAdditionalText : AdditionalText
