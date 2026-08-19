@@ -1,3 +1,5 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 namespace Metin2.Architecture.Tests;
 
 [TestClass]
