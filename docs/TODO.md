@@ -6,29 +6,29 @@
 - [x] Add README
 - [x] Add architecture principles
 - [x] Add master development prompt
-- [ ] Create `Metin2.sln`
-- [ ] Add `Directory.Build.props`
-- [ ] Enable nullable reference types
-- [ ] Enable warnings as errors
-- [ ] Add `.editorconfig`
-- [ ] Add analyzers
-- [ ] Create `src`, `tests`, `protocol`, `docs/adr` structure
-- [ ] Add CI pipeline
+- [x] Create `Metin2.sln`
+- [x] Add `Directory.Build.props`
+- [x] Enable nullable reference types
+- [x] Enable warnings as errors
+- [x] Add `.editorconfig`
+- [x] Add analyzers
+- [x] Create `src`, `tests`, `protocol`, `docs/adr` structure
+- [x] Add CI pipeline
 - [ ] Verify Debug/Release builds
 - [ ] Verify Ubuntu build
-- [ ] Add Docker build
+- [x] Add Docker build
 
 ## Phase 1 — Shared Kernel
 
-- [ ] CharacterId
-- [ ] AccountId
-- [ ] ItemId
-- [ ] GuildId
-- [ ] MapId
-- [ ] EntityId
-- [ ] MonsterId
-- [ ] Minimal result/error abstractions
-- [ ] Domain event primitives
+- [x] CharacterId
+- [x] AccountId
+- [x] ItemId
+- [x] GuildId
+- [x] MapId
+- [x] EntityId
+- [x] MonsterId
+- [x] Minimal result/error abstractions
+- [x] Domain event primitives
 
 ## Phase 2 — Protocol Definition Format
 
