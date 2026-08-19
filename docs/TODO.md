@@ -57,7 +57,10 @@
 - [ ] Generate packet registry
 - [x] Direction validation
 - [ ] Size validation
-- [ ] Strong ID serialization
+- [x] Strong ID serialization for fixed scalar codecs
+- [x] Generate fixed-layout primitive codecs
+- [ ] Generate fixed-string/bytes codecs
+- [ ] Generate variable-length/array codecs
 - [x] Generator tests
 - [ ] Snapshot/golden tests
 - [x] Verify no runtime reflection
