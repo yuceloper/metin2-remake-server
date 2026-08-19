@@ -22,8 +22,8 @@ internal static class PacketModelEmitter
         source.AppendLine($"    public const string Phase = \"{Escape(packet.Phase)}\";");
         source.AppendLine($"    public const int Since = {packet.Since};");
         source.AppendLine(packet.Until.HasValue
-            ? $"    public const int Until = {packet.Until.Value};"
-            : "    public const int? Until = null;");
+            ? $"    public static int? Until => {packet.Until.Value};"
+            : "    public static int? Until => null;");
         source.AppendLine("}");
 
         return source.ToString();
@@ -109,6 +109,6 @@ internal static class PacketModelEmitter
     }
 
     private static string Escape(string value) =>
-        value.Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("\"", "\\\"", StringComparison.Ordinal);
+        value.Replace("\\", "\\\\")
+            .Replace("\"", "\\\"");
 }
