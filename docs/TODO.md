@@ -47,20 +47,20 @@
 
 ## Phase 3 — Roslyn Packet Generator
 
-- [ ] Create `Metin2.Protocol.Generator`
-- [ ] Parse packet definitions
-- [ ] Generator diagnostics
+- [x] Create `Metin2.Protocol.Generator`
+- [x] Parse packet definitions
+- [x] Generator diagnostics
 - [ ] Generate packet models
 - [ ] Generate opcode constants
 - [ ] Generate serializers
 - [ ] Generate deserializers
 - [ ] Generate packet registry
-- [ ] Direction validation
+- [x] Direction validation
 - [ ] Size validation
 - [ ] Strong ID serialization
-- [ ] Generator tests
+- [x] Generator tests
 - [ ] Snapshot/golden tests
-- [ ] Verify no runtime reflection
+- [x] Verify no runtime reflection
 - [ ] Allocation benchmarks
 
 ## Phase 4 — Protocol Documentation
