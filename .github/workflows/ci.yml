@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Metin2.sln
+
+      - name: Build Debug
+        run: dotnet build Metin2.sln --configuration Debug --no-restore
+
+      - name: Test Debug
+        run: dotnet test Metin2.sln --configuration Debug --no-build
+
+      - name: Build Release
+        run: dotnet build Metin2.sln --configuration Release --no-restore
+
+      - name: Test Release
+        run: dotnet test Metin2.sln --configuration Release --no-build

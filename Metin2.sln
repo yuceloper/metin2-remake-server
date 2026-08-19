@@ -1,0 +1,42 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Server", "src/Metin2.Server/Metin2.Server.csproj", "{8E28FAEE-7D82-47AE-9105-0AA6B60FDF61}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Protocol", "src/Metin2.Protocol/Metin2.Protocol.csproj", "{D0A1FFAB-5F0B-4D20-8EF8-129F47F74A35}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Protocol.Generator", "src/Metin2.Protocol.Generator/Metin2.Protocol.Generator.csproj", "{3DD85DA2-CDF4-4C01-9803-7457215F0BC1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Shared", "src/Metin2.Shared/Metin2.Shared.csproj", "{BB2A87C9-3297-4A4D-A974-76273068C0BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Architecture.Tests", "tests/Metin2.Architecture.Tests/Metin2.Architecture.Tests.csproj", "{18A88274-ED43-4FD7-91D2-B7BB150932A6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8E28FAEE-7D82-47AE-9105-0AA6B60FDF61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E28FAEE-7D82-47AE-9105-0AA6B60FDF61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E28FAEE-7D82-47AE-9105-0AA6B60FDF61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E28FAEE-7D82-47AE-9105-0AA6B60FDF61}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0A1FFAB-5F0B-4D20-8EF8-129F47F74A35}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0A1FFAB-5F0B-4D20-8EF8-129F47F74A35}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0A1FFAB-5F0B-4D20-8EF8-129F47F74A35}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0A1FFAB-5F0B-4D20-8EF8-129F47F74A35}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DD85DA2-CDF4-4C01-9803-7457215F0BC1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DD85DA2-CDF4-4C01-9803-7457215F0BC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DD85DA2-CDF4-4C01-9803-7457215F0BC1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DD85DA2-CDF4-4C01-9803-7457215F0BC1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BB2A87C9-3297-4A4D-A974-76273068C0BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB2A87C9-3297-4A4D-A974-76273068C0BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB2A87C9-3297-4A4D-A974-76273068C0BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB2A87C9-3297-4A4D-A974-76273068C0BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

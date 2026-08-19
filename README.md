@@ -8,6 +8,12 @@ A clean-room, modern Metin2-compatible MMORPG server platform written in C#/.NET
 
 The original Metin2 server source is used only to understand protocol layouts, opcodes, client expectations, gameplay behavior and compatibility requirements. Legacy architecture, global state, singleton-heavy design, DB daemon structure and build system are not carried forward.
 
+## Runtime Baseline
+
+- .NET 10 LTS
+- Ubuntu-first deployment
+- Docker-compatible production packaging
+
 ## Architecture
 
 - C# / modern .NET
