@@ -36,7 +36,7 @@ public sealed class PacketGeneratorTests
 
         Assert.AreEqual(1, document.Schema);
         Assert.AreEqual("test", document.Protocol);
-        Assert.HasCount(1, document.Packets);
+        Assert.AreEqual(1, document.Packets.Count);
         Assert.AreEqual("Ping", document.Packets[0].Name);
         Assert.AreEqual(1, document.Packets[0].Opcode);
     }
@@ -118,7 +118,7 @@ public sealed class PacketGeneratorTests
 
         Assert.IsFalse(diagnostics.Any(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
         Assert.AreEqual(2, outputCompilation.SyntaxTrees.Count());
-        Assert.HasCount(1, runResult.Results);
+        Assert.AreEqual(1, runResult.Results.Length);
         Assert.IsTrue(runResult.Results[0].GeneratedSources.Any(static source => source.HintName == "ProtocolManifest.g.cs"));
     }
 
