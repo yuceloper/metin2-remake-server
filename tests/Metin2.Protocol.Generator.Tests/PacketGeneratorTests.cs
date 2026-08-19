@@ -125,20 +125,24 @@ public sealed class PacketGeneratorTests
     }
 
     [TestMethod]
-    public void Generator_EmitsManifestAndPacketModelForValidAdditionalFile()
+    public void Generator_EmitsTypedMetadataAndPacketModelForValidAdditionalFile()
     {
         GeneratorDriverRunResult runResult = RunGenerator(ValidYaml);
 
         Assert.AreEqual(1, runResult.Results.Length);
-        Assert.IsTrue(runResult.Results[0].GeneratedSources.Any(static source => source.HintName == "ProtocolManifest.g.cs"));
+        GeneratedSourceResult metadataSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "ProtocolMetadata.g.cs");
+        string metadata = metadataSource.SourceText.ToString();
+        StringAssert.Contains(metadata, "public enum PacketDirection : byte");
+        StringAssert.Contains(metadata, "public enum PacketPhase : byte");
+
         GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Ping.g.cs");
         string generated = packetSource.SourceText.ToString();
 
         StringAssert.Contains(generated, "public readonly partial record struct Ping(");
         StringAssert.Contains(generated, "uint Value");
         StringAssert.Contains(generated, "public const ushort Opcode = 1;");
-        StringAssert.Contains(generated, "public const string Direction = \"client_to_server\";");
-        StringAssert.Contains(generated, "public const string Phase = \"game\";");
+        StringAssert.Contains(generated, "PacketDirection.ClientToServer");
+        StringAssert.Contains(generated, "PacketPhase.Game");
     }
 
     [TestMethod]
