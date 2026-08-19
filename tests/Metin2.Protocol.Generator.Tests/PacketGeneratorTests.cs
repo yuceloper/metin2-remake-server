@@ -31,7 +31,6 @@ public sealed class PacketGeneratorTests
     public void Parser_ParsesValidDefinition()
     {
         var parser = new PacketDefinitionParser();
-
         PacketDocument document = parser.Parse(ValidYaml);
 
         Assert.AreEqual(1, document.Schema);
@@ -64,7 +63,6 @@ public sealed class PacketGeneratorTests
 
         var parser = new PacketDefinitionParser();
         PacketDocument document = parser.Parse(yaml);
-
         IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
 
         Assert.IsTrue(failures.Any(static failure => failure.Code == "DuplicateOpcode"));
@@ -91,7 +89,6 @@ public sealed class PacketGeneratorTests
 
         var parser = new PacketDefinitionParser();
         PacketDocument document = parser.Parse(yaml);
-
         IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
 
         Assert.IsTrue(failures.Any(static failure => failure.Code == "UnboundedVariableField"));
@@ -118,10 +115,34 @@ public sealed class PacketGeneratorTests
 
         var parser = new PacketDefinitionParser();
         PacketDocument document = parser.Parse(yaml);
-
         IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
 
         Assert.IsTrue(failures.Any(static failure => failure.Code == "GeneratedFieldNameCollision"));
+    }
+
+    [TestMethod]
+    public void Validator_RejectsDomainWireTypeMismatch()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: BrokenItem
+                opcode: 4
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: item_id
+                    type: u32le
+                    domainType: ItemId
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "DomainWireTypeMismatch"));
     }
 
     [TestMethod]
@@ -172,6 +193,37 @@ public sealed class PacketGeneratorTests
         StringAssert.Contains(generated, "global::Metin2.Shared.Identity.CharacterId CharacterId");
         StringAssert.Contains(generated, "float Rotation");
         Assert.IsFalse(generated.Contains("uint CharacterId", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void Generator_EmitsFixedCodecWithStaticSizeAndStrongIdBoundaryMapping()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: CharacterMove
+                opcode: 16
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: character_id
+                    type: u32le
+                    domainType: CharacterId
+                  - name: rotation
+                    type: f32le
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult codecSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Codecs.CharacterMove.g.cs");
+        string generated = codecSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "public const int EncodedSize = 8;");
+        StringAssert.Contains(generated, "if (reader.Remaining < EncodedSize)");
+        StringAssert.Contains(generated, "new global::Metin2.Shared.Identity.CharacterId(characterIdRaw)");
+        StringAssert.Contains(generated, "writer.TryWriteUInt32LittleEndian(packet.CharacterId.Value)");
+        StringAssert.Contains(generated, "writer.TryWriteSingleLittleEndian(packet.Rotation)");
     }
 
     private static GeneratorDriverRunResult RunGenerator(string yaml)
