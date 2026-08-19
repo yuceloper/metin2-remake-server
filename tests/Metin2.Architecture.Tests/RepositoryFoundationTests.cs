@@ -6,6 +6,6 @@ public sealed class RepositoryFoundationTests
     [TestMethod]
     public void ServerHost_IsPublicArchitectureEntryPoint()
     {
-        Assert.IsTrue(typeof(Server.ServerHost).IsAbstract && typeof(Server.ServerHost).IsSealed);
+        Assert.IsTrue(typeof(Metin2.Server.ServerHost).IsAbstract && typeof(Metin2.Server.ServerHost).IsSealed);
     }
 }
