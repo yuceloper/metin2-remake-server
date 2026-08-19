@@ -5,7 +5,7 @@
 - [x] Create repository
 - [x] Add README
 - [x] Add architecture principles
-- [ ] Add master development prompt
+- [x] Add master development prompt
 - [ ] Create `Metin2.sln`
 - [ ] Add `Directory.Build.props`
 - [ ] Enable nullable reference types
