@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Metin2.Shared/Metin2.Shared.csproj" />
+    <ProjectReference Include="../Metin2.Protocol.Generator/Metin2.Protocol.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="../../protocol/**/*.packet.yml" />
+    <AdditionalFiles Include="../../protocol/**/*.packet.yaml" />
   </ItemGroup>
 </Project>
