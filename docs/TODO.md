@@ -32,18 +32,18 @@
 
 ## Phase 2 — Protocol Definition Format
 
-- [ ] Decide YAML vs custom DSL
-- [ ] Define opcode metadata
-- [ ] Define packet direction
-- [ ] Primitive field types
-- [ ] Fixed-length strings
-- [ ] Variable-length strings
-- [ ] Byte arrays
-- [ ] Strong ID support
-- [ ] Array support
-- [ ] Protocol version metadata
-- [ ] Packet-size metadata
-- [ ] Validation rules
+- [x] Decide YAML vs custom DSL
+- [x] Define opcode metadata
+- [x] Define packet direction
+- [x] Primitive field types
+- [x] Fixed-length strings
+- [x] Variable-length strings
+- [x] Byte arrays
+- [x] Strong ID support
+- [x] Array support
+- [x] Protocol version metadata
+- [x] Packet-size metadata
+- [x] Validation rules
 
 ## Phase 3 — Roslyn Packet Generator
 
