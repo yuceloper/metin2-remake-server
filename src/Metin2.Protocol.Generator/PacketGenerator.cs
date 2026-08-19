@@ -60,6 +60,7 @@ public sealed class PacketGenerator : IIncrementalGenerator
 
             EmitProtocolMetadata(sourceContext, validDocuments);
             EmitPacketModels(sourceContext, validDocuments);
+            EmitFixedPacketCodecs(sourceContext, validDocuments);
         });
     }
 
@@ -131,6 +132,17 @@ public sealed class PacketGenerator : IIncrementalGenerator
         {
             string source = PacketModelEmitter.Emit(packet);
             context.AddSource($"Packets.{packet.Name}.g.cs", SourceText.From(source, Encoding.UTF8));
+        }
+    }
+
+    private static void EmitFixedPacketCodecs(SourceProductionContext context, IReadOnlyList<PacketDocument> documents)
+    {
+        foreach (PacketDefinition packet in documents
+                     .SelectMany(static document => document.Packets)
+                     .Where(FixedPacketCodecEmitter.CanEmit))
+        {
+            string source = FixedPacketCodecEmitter.Emit(packet);
+            context.AddSource($"Codecs.{packet.Name}.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }
 
