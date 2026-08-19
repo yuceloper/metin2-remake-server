@@ -1,0 +1,43 @@
+# Illustrative only. Opcodes and layouts here are NOT claimed to match the legacy client.
+schema: 1
+protocol: example
+packets:
+  - name: ExampleHandshake
+    opcode: 0x01
+    direction: server_to_client
+    phase: handshake
+    size: fixed
+    since: 1
+    fields:
+      - name: token
+        type: u32le
+
+  - name: ExampleCharacterMove
+    opcode: 0x10
+    direction: client_to_server
+    phase: game
+    size: fixed
+    since: 1
+    fields:
+      - name: character_id
+        type: u32le
+        domainType: CharacterId
+      - name: x
+        type: f32le
+      - name: y
+        type: f32le
+      - name: rotation
+        type: f32le
+
+  - name: ExampleChat
+    opcode: 0x20
+    direction: client_to_server
+    phase: game
+    size: variable
+    since: 1
+    fields:
+      - name: message
+        type: string
+        encoding: utf8
+        lengthType: u16le
+        maxLength: 1024
