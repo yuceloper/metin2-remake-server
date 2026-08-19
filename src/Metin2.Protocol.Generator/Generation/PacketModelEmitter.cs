@@ -18,8 +18,8 @@ internal static class PacketModelEmitter
         source.AppendLine(declaration);
         source.AppendLine("{");
         source.AppendLine($"    public const ushort Opcode = {packet.Opcode};");
-        source.AppendLine($"    public const string Direction = \"{Escape(packet.Direction)}\";");
-        source.AppendLine($"    public const string Phase = \"{Escape(packet.Phase)}\";");
+        source.AppendLine($"    public const global::Metin2.Protocol.Generated.PacketDirection Direction = {MapDirection(packet.Direction)};");
+        source.AppendLine($"    public const global::Metin2.Protocol.Generated.PacketPhase Phase = {MapPhase(packet.Phase)};");
         source.AppendLine($"    public const int Since = {packet.Since};");
         source.AppendLine(packet.Until.HasValue
             ? $"    public static int? Until => {packet.Until.Value};"
@@ -83,6 +83,31 @@ internal static class PacketModelEmitter
         };
     }
 
+    private static string MapDirection(string direction)
+    {
+        return direction switch
+        {
+            "client_to_server" => "global::Metin2.Protocol.Generated.PacketDirection.ClientToServer",
+            "server_to_client" => "global::Metin2.Protocol.Generated.PacketDirection.ServerToClient",
+            "bidirectional" => "global::Metin2.Protocol.Generated.PacketDirection.Bidirectional",
+            _ => "global::Metin2.Protocol.Generated.PacketDirection.Bidirectional"
+        };
+    }
+
+    private static string MapPhase(string phase)
+    {
+        return phase switch
+        {
+            "handshake" => "global::Metin2.Protocol.Generated.PacketPhase.Handshake",
+            "auth" => "global::Metin2.Protocol.Generated.PacketPhase.Auth",
+            "select" => "global::Metin2.Protocol.Generated.PacketPhase.Select",
+            "loading" => "global::Metin2.Protocol.Generated.PacketPhase.Loading",
+            "game" => "global::Metin2.Protocol.Generated.PacketPhase.Game",
+            "any" => "global::Metin2.Protocol.Generated.PacketPhase.Any",
+            _ => "global::Metin2.Protocol.Generated.PacketPhase.Any"
+        };
+    }
+
     internal static string ToPascalCase(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -107,8 +132,4 @@ internal static class PacketModelEmitter
 
         return builder.ToString();
     }
-
-    private static string Escape(string value) =>
-        value.Replace("\\", "\\\\")
-            .Replace("\"", "\\\"");
 }
