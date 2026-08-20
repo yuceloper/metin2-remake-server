@@ -1,0 +1,18 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Core/Core/Packets/GCPhase.cs
+# - yuceloper/new-metin src/CorePluginAPI/Game/Types/EPhases.cs
+# The phase field remains raw u8 until a dedicated legacy wire enum/type is introduced.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: Phase
+    opcode: 0xFD
+    direction: server_to_client
+    phase: any
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: phase
+        type: u8
