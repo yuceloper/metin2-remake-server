@@ -1,36 +1,25 @@
-# Legacy Metin2 Handshake & Auth Protocol Research
+# Legacy Metin2 Handshake, Auth & Game Login Research
 
 Status: **reference-confirmed, compatibility verification pending**
 
-This document records protocol evidence only. The referenced project is not an architectural dependency and its implementation must not be copied into the remake.
+This document records protocol evidence only. The inspected `yuceloper/new-metin` implementation is not an architectural dependency and its design is not copied into the remake.
 
 ## Evidence policy
 
-Confidence labels used here:
+- **reference-confirmed** — directly represented in inspected reference source.
+- **compatibility-verified** — confirmed against original legacy source and/or real client packet capture.
 
-- **reference-confirmed** — directly represented in the inspected `yuceloper/new-metin` reference source.
-- **compatibility-verified** — confirmed against the original legacy source and/or a real client packet capture. Nothing in this document has this status yet.
+Nothing here is compatibility-verified yet.
 
-## Framing boundary
+## Legacy framing boundary
 
-The inspected reference implementation reads the packet header separately from packet payload data.
-
-For the legacy profile:
+The reference reader/serializer establishes this legacy frame shape:
 
 ```text
-[ header: u8 ][ payload: N bytes ][ optional sequence: u8 ]
+[ header:u8 ][ payload:N ][ optional sequence:u8 ]
 ```
 
-The generated packet codec is responsible for **payload only**.
-
-The networking/framing layer is responsible for:
-
-- reading/writing the legacy one-byte header,
-- selecting a packet definition from opcode + connection state,
-- reading/writing the optional trailing sequence byte,
-- ensuring the full frame is available before dispatch.
-
-Therefore generated fixed codecs expose `PayloadSize`, not total frame size.
+Generated packet codecs own **payload only**. The future legacy framing/session layer owns the header, optional sequence byte, full-frame availability and sequence progression/validation.
 
 For a fixed legacy packet:
 
@@ -38,88 +27,96 @@ For a fixed legacy packet:
 FrameSize = 1 + PayloadSize + (HasSequence ? 1 : 0)
 ```
 
-This is a legacy framing rule, not a universal rule for future/native protocol profiles.
+This rule belongs only to the legacy framing profile.
 
-## Handshake packet
+## Fixed string behavior
 
-Evidence source:
+Evidence:
 
 ```text
-yuceloper/new-metin
-src/Core/Core/Packets/GCHandshake.cs
+src/Core.Networking/SerializerExtensions.cs
 ```
 
-Reference definition:
+The reference implementation uses ASCII fixed-width buffers:
+
+- read exactly the declared byte width,
+- decode ASCII,
+- stop at the first `0x00` when present,
+- write into the full fixed-width region,
+- reserve/set the final byte as `0x00`,
+- unused bytes are zero-filled by the serializer buffer.
+
+Therefore a 31-byte field safely carries at most 30 ASCII bytes plus its terminator.
+
+The remake intentionally rejects an overlong value before writing instead of silently truncating. Valid values remain byte-compatible while malformed application input cannot partially corrupt an outgoing packet.
+
+Canonical representation:
+
+```yaml
+type: fixed_string
+length: 31
+encoding: ascii
+termination: null
+trim: null
+```
+
+## Handshake — 0xFF
+
+Evidence:
+
+```text
+src/Core/Core/Packets/GCHandshake.cs
+src/Core/Core/Networking/Connection.cs
+```
 
 ```text
 Header:    0xFF
 Direction: bidirectional
-Handshake: uint32
-Time:      uint32
-Delta:     uint32
+Payload:   handshake:u32 + time:u32 + delta:u32
+Endian:    little
+Sequence:  false
+Payload:   12 bytes
+Frame:     13 bytes
 ```
 
-The inspected serializer writes multi-byte integer values least-significant byte first, therefore the current YAML represents these fields as `u32le`.
-
-Payload size: **12 bytes**.
-Legacy frame size without sequence: **13 bytes**.
-
-The canonical remake definition is:
+Canonical definition:
 
 ```text
 protocol/common/legacy-handshake.packet.yml
 ```
 
-### Handshake lifecycle
+Observed lifecycle:
 
-Evidence source:
+1. TCP connection begins in handshake state.
+2. Server creates a random 32-bit handshake token.
+3. Server sends `Handshake(token, serverTime, 0)`.
+4. Client responds with the same token plus time/delta.
+5. Wrong token closes the connection.
+6. Server computes `serverTime - (clientTime + clientDelta)`.
+7. A difference in the reference acceptance range `0..50 ms` completes the handshake; otherwise another delta/handshake round occurs.
 
-```text
-yuceloper/new-metin
-src/Core/Core/Networking/Connection.cs
-```
+The behavior is evidence, not code to copy mechanically.
 
-Observed behavior:
+## Phase — 0xFD
 
-1. A newly established TCP connection starts handshaking.
-2. Server generates a random 32-bit handshake token.
-3. Connection state is set to Handshake.
-4. Server sends `Handshake(token, serverTime, 0)`.
-5. Client responds using the same handshake token plus its time/delta values.
-6. A mismatching token closes the connection.
-7. Server computes:
+Evidence:
 
 ```text
-difference = serverTime - (clientTime + clientDelta)
-```
-
-8. When difference is in the accepted range `0..50 ms`, handshaking completes.
-9. Otherwise a new delta is calculated and another handshake packet is sent.
-
-The exact timing algorithm is recorded as behavior evidence, but should be re-evaluated when implementing the new session state machine rather than copied mechanically.
-
-## Phase packet
-
-Evidence sources:
-
-```text
-yuceloper/new-metin
 src/Core/Core/Packets/GCPhase.cs
 src/CorePluginAPI/Game/Types/EPhases.cs
 src/Core/Extensions/ConnectionExtensions.cs
 ```
 
-Reference definition:
-
 ```text
 Header:    0xFD
 Direction: server -> client
 Payload:   phase:u8
+Sequence:  false
 ```
 
 Reference wire phase values:
 
-| Wire value | Meaning |
+| Value | Meaning |
 | ---: | --- |
 | 1 | Handshake |
 | 2 | Login |
@@ -128,87 +125,165 @@ Reference wire phase values:
 | 5 | Game |
 | 10 | Auth |
 
-Important: these are **legacy wire values**. They are not the numeric values of the remake generator's `PacketPhase` metadata enum. `PacketPhase` exists to constrain dispatcher state and must not be serialized as GCPhase implicitly.
+These values are legacy wire values and are intentionally independent of the generator's `PacketPhase` dispatcher metadata enum.
 
-The Auth reference server changes phase to `Auth` after the handshake completion callback, therefore the client receives a phase frame corresponding to:
+After auth handshake completion the reference server changes the client to Auth, giving the expected reference frame `FD 0A` pending final traffic/original-source verification.
+
+Canonical definition:
 
 ```text
-FD 0A
+protocol/server/legacy-phase.packet.yml
 ```
 
-subject to final packet-capture/original-source verification.
+## Auth LoginRequest — 0x6F
 
-## Auth login request
-
-Evidence source:
+Evidence:
 
 ```text
-yuceloper/new-metin
 src/Executables/Auth/Packets/LoginRequest.cs
-```
-
-Reference metadata:
-
-```text
-Header:      0x6F
-Direction:   client -> server
-Sequence:    true
-Username:    fixed string, 31 bytes
-Password:    fixed string, 17 bytes
-EncryptKey:  4 x uint32
-```
-
-The reference serializer writes a sequence byte after payload data and counts it in total packet size. The reference packet reader separately consumes that trailing byte after payload deserialization.
-
-Expected reference frame size from this definition:
-
-```text
-1 header
-+ 31 username
-+ 17 password
-+ 16 encrypt key
-+ 1 sequence
-= 66 bytes
-```
-
-This LoginRequest is **not yet committed as a canonical packet YAML definition** because the remake generator still needs fixed-string and fixed-array codec support and the exact string termination/encoding behavior should be checked against original source/client traffic.
-
-## Sequence behavior
-
-Evidence sources:
-
-```text
-yuceloper/new-metin
-src/Core.Networking/PacketAttribute.cs
+src/Core.Networking/SerializerExtensions.cs
 src/Core.Networking.Generators/SerializeGenerator.cs
 src/Core.Networking/PacketReader.cs
 ```
 
-The reference implementation models `Sequence` as packet metadata.
+```text
+Header:      0x6F
+Direction:   client -> server
+Phase:       Auth
+Sequence:    true
+Username:    ASCII fixed[31]
+Password:    ASCII fixed[17]
+EncryptKey:  u32le[4]
+Payload:     64 bytes
+Frame:       66 bytes
+```
 
-When enabled:
+Canonical definition:
 
-- serialization appends one trailing byte after all normal packet fields,
-- packet total size includes that byte,
-- deserialization reads normal payload first,
-- the reader then consumes one additional sequence byte.
+```text
+protocol/client/legacy-login-request.packet.yml
+```
 
-At this research stage the byte's actual validation/progression semantics have not yet been confirmed. The remake therefore records only `sequence: true|false`; sequence generation/verification behavior belongs to the future legacy framing/session layer.
+## Auth LoginSuccess — 0x96
 
-## Open verification items
+Evidence:
+
+```text
+src/Executables/Auth/Packets/LoginSuccess.cs
+```
+
+```text
+Header:     0x96
+Direction:  server -> client
+Phase:      Auth
+Sequence:   false
+Key:        u32le
+Result:     u8
+Payload:    5 bytes
+Frame:      6 bytes
+```
+
+Canonical definition:
+
+```text
+protocol/server/legacy-login-success.packet.yml
+```
+
+## Auth LoginFailed — 0x07
+
+Evidence:
+
+```text
+src/Executables/Auth/Packets/LoginFailed.cs
+src/Core.Networking/SerializerExtensions.cs
+```
+
+```text
+Header:     0x07
+Direction:  server -> client
+Phase:      Auth
+Sequence:   false
+Unknown:    u8
+Status:     ASCII fixed[9]
+Payload:    10 bytes
+Frame:      11 bytes
+```
+
+Canonical definition:
+
+```text
+protocol/server/legacy-login-failed.packet.yml
+```
+
+## Game TokenLogin — 0x6D
+
+Evidence:
+
+```text
+src/Executables/Game/Packets/TokenLogin.cs
+src/Executables/Game/PacketHandlers/TokenLoginHandler.cs
+src/Executables/Game/GameConnection.cs
+src/Executables/Game/GameServer.cs
+```
+
+The game connection runs the shared handshake first. After handshake completion, `GameServer`'s new-connection listener sets the connection to the reference `Login` phase. TokenLogin is therefore modeled with dispatcher phase `login`.
+
+```text
+Header:     0x6D
+Direction:  client -> server
+Phase:      Login
+Sequence:   true
+Username:   ASCII fixed[31]
+Key:        u32le
+XteaKey:    u32le[4]
+Payload:    51 bytes
+Frame:      53 bytes
+```
+
+Canonical definition:
+
+```text
+protocol/client/legacy-token-login.packet.yml
+```
+
+After a valid token, the inspected handler sets encryption/session data, marks the session logged in, sends empire information, changes phase to Select and sends the character list. This flow remains behavior evidence only.
+
+## Sequence behavior
+
+Reference metadata marks individual packet types as sequenced. When enabled:
+
+- serialization writes the normal header,
+- writes payload fields,
+- appends one trailing sequence byte,
+- total frame size includes that byte,
+- deserialization reads header and payload separately, then consumes sequence.
+
+The actual sequence progression and validation algorithm remains unresolved and belongs to the future legacy framing/session implementation.
+
+## Current canonical reference-confirmed packets
+
+```text
+protocol/common/legacy-handshake.packet.yml
+protocol/server/legacy-phase.packet.yml
+protocol/client/legacy-login-request.packet.yml
+protocol/server/legacy-login-success.packet.yml
+protocol/server/legacy-login-failed.packet.yml
+protocol/client/legacy-token-login.packet.yml
+```
+
+## Open compatibility verification
 
 Before declaring login compatibility complete:
 
-- cross-check handshake struct and headers against original Metin2 source,
-- capture a real client handshake/login session if practical,
-- verify login fixed-string encoding,
-- verify null termination/padding semantics,
-- verify encrypt-key byte order,
-- determine sequence-byte progression/validation semantics,
-- verify whether client variants alter LoginRequest layout.
+- cross-check headers/layouts against original Metin2 source,
+- capture real client handshake/auth/game-login traffic where practical,
+- verify client-build differences,
+- verify exact key byte order against original source/traffic,
+- determine sequence progression/validation,
+- verify encryption activation boundary around TokenLogin.
 
 ## Architecture consequence
 
-No legacy `Connection`, reflection-based packet registry, generated serializer implementation, Redis dependency, plugin model, or thread model from the reference project is adopted.
+No legacy `Connection`, reflection packet registry, serializer generator architecture, singleton/server pattern, Redis/plugin model or threading design is adopted.
 
-Only the observed wire contract and behavior are carried forward as evidence.
+Only observed wire contract and behavior are carried forward as evidence.
