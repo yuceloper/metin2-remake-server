@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Architecture.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Protocol.Generator.Tests", "tests/Metin2.Protocol.Generator.Tests/Metin2.Protocol.Generator.Tests.csproj", "{A7C91F87-207B-4561-84CE-3D53D169C64F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Protocol.Tests", "tests/Metin2.Protocol.Tests/Metin2.Protocol.Tests.csproj", "{1FE69F44-E489-44E2-9466-D73C6D514C2E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
 		{A7C91F87-207B-4561-84CE-3D53D169C64F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A7C91F87-207B-4561-84CE-3D53D169C64F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A7C91F87-207B-4561-84CE-3D53D169C64F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FE69F44-E489-44E2-9466-D73C6D514C2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FE69F44-E489-44E2-9466-D73C6D514C2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FE69F44-E489-44E2-9466-D73C6D514C2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FE69F44-E489-44E2-9466-D73C6D514C2E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
