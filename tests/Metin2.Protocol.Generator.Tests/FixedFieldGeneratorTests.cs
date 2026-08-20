@@ -27,14 +27,14 @@ public sealed class FixedFieldGeneratorTests
                     type: fixed_string
                     length: 31
                     encoding: ascii
-                    termination: null
-                    trim: null
+                    termination: "null"
+                    trim: "null"
                   - name: password
                     type: fixed_string
                     length: 17
                     encoding: ascii
-                    termination: null
-                    trim: null
+                    termination: "null"
+                    trim: "null"
                   - name: encrypt_key
                     type: array
                     length: 4
@@ -77,8 +77,8 @@ public sealed class FixedFieldGeneratorTests
                     type: fixed_string
                     length: 31
                     encoding: ascii
-                    termination: null
-                    trim: null
+                    termination: "null"
+                    trim: "null"
                   - name: key
                     type: u32le
                   - name: xtea_key
