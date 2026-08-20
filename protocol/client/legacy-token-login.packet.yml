@@ -18,8 +18,8 @@ packets:
         type: fixed_string
         length: 31
         encoding: ascii
-        termination: null
-        trim: null
+        termination: "null"
+        trim: "null"
       - name: key
         type: u32le
       - name: xtea_key
