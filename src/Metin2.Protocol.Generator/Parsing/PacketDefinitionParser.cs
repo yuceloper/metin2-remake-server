@@ -60,7 +60,12 @@ internal sealed class PacketDefinitionParser
                         field.MaxLength,
                         field.Encoding,
                         field.Termination,
-                        field.Trim))
+                        field.Trim,
+                        field.Element is null
+                            ? null
+                            : new ElementDefinition(
+                                field.Element.Type ?? string.Empty,
+                                field.Element.DomainType)))
                     .ToArray()))
             .ToArray();
 
@@ -99,6 +104,13 @@ internal sealed class PacketDefinitionParser
         public string? Encoding { get; set; }
         public string? Termination { get; set; }
         public string? Trim { get; set; }
+        public ElementDto? Element { get; set; }
+    }
+
+    private sealed class ElementDto
+    {
+        public string? Type { get; set; }
+        public string? DomainType { get; set; }
     }
 }
 
