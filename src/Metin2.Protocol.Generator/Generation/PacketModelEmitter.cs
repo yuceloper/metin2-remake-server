@@ -43,14 +43,30 @@ internal static class PacketModelEmitter
         return $"public readonly partial record struct {packet.Name}(\n    {parameters})";
     }
 
-    private static string MapFieldType(FieldDefinition field)
+    internal static string MapFieldType(FieldDefinition field)
     {
+        if (field.Type == "array")
+        {
+            string elementType = field.Element is null
+                ? "byte"
+                : MapWireOrDomainType(field.Element.Type, field.Element.DomainType);
+            return $"global::System.ReadOnlyMemory<{elementType}>";
+        }
+
         if (!string.IsNullOrWhiteSpace(field.DomainType))
         {
             return MapDomainType(field.DomainType!);
         }
 
-        return field.Type switch
+        return MapWireType(field.Type);
+    }
+
+    internal static string MapWireOrDomainType(string wireType, string? domainType) =>
+        string.IsNullOrWhiteSpace(domainType) ? MapWireType(wireType) : MapDomainType(domainType!);
+
+    internal static string MapWireType(string wireType)
+    {
+        return wireType switch
         {
             "i8" => "sbyte",
             "u8" => "byte",
@@ -69,7 +85,7 @@ internal static class PacketModelEmitter
         };
     }
 
-    private static string MapDomainType(string domainType)
+    internal static string MapDomainType(string domainType)
     {
         return domainType switch
         {
