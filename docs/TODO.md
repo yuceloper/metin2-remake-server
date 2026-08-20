@@ -20,15 +20,15 @@
 
 ## Phase 1 — Shared Kernel
 
-- [ ] CharacterId
-- [ ] AccountId
-- [ ] ItemId
-- [ ] GuildId
-- [ ] MapId
-- [ ] EntityId
-- [ ] MonsterId
-- [ ] Minimal result/error abstractions
-- [ ] Domain event primitives
+- [x] CharacterId
+- [x] AccountId
+- [x] ItemId
+- [x] GuildId
+- [x] MapId
+- [x] EntityId
+- [x] MonsterId
+- [x] Minimal result/error abstractions
+- [x] Domain event primitives
 
 ## Phase 2 — Protocol Definition Format
 
