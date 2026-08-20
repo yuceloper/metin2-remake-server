@@ -46,6 +46,7 @@ internal sealed class PacketDefinitionParser
                 packet.Direction ?? string.Empty,
                 packet.Phase ?? string.Empty,
                 packet.Size ?? string.Empty,
+                packet.Sequence,
                 packet.Since <= 0 ? 1 : packet.Since,
                 packet.Until,
                 (packet.Fields ?? new List<FieldDto>())
@@ -80,6 +81,7 @@ internal sealed class PacketDefinitionParser
         public string? Direction { get; set; }
         public string? Phase { get; set; }
         public string? Size { get; set; }
+        public bool Sequence { get; set; }
         public int Since { get; set; } = 1;
         public int? Until { get; set; }
         public List<FieldDto>? Fields { get; set; }
