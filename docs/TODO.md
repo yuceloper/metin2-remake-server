@@ -44,6 +44,8 @@
 - [x] Protocol version metadata
 - [x] Packet-size metadata
 - [x] Validation rules
+- [x] Packet sequence metadata
+- [x] Define payload-vs-framing boundary
 
 ## Phase 3 — Roslyn Packet Generator
 
@@ -59,6 +61,7 @@
 - [ ] Size validation
 - [x] Strong ID serialization for fixed scalar codecs
 - [x] Generate fixed-layout primitive codecs
+- [x] Expose fixed `PayloadSize` semantics
 - [ ] Generate fixed-string/bytes codecs
 - [ ] Generate variable-length/array codecs
 - [x] Generator tests
@@ -84,6 +87,8 @@
 - [ ] GameSession
 - [ ] System.IO.Pipelines receive pipeline
 - [ ] Send pipeline
+- [ ] Legacy one-byte header framing profile
+- [ ] Optional trailing sequence-byte framing
 - [ ] Frame decoder/encoder
 - [ ] Packet decoder/encoder
 - [ ] Graceful disconnect
@@ -109,9 +114,14 @@
 
 ## Phase 7 — Legacy Protocol Research
 
-- [ ] Extract packet headers from legacy reference source
-- [ ] Document handshake flow
-- [ ] Document login protocol
+- [ ] Extract packet headers from legacy reference source (ongoing)
+- [x] Document handshake flow from reference implementation
+- [x] Document phase packet and reference wire values
+- [x] Document auth login request reference layout
+- [x] Document legacy header/payload/sequence framing behavior
+- [x] Add reference-confirmed Handshake YAML
+- [x] Add reference-confirmed Phase YAML
+- [ ] Add LoginRequest YAML after fixed-string/array support and final layout verification
 - [ ] Extract character selection protocol
 - [ ] Extract game-enter protocol
 - [ ] Extract movement packets
@@ -120,12 +130,13 @@
 - [ ] Extract combat packets
 - [ ] Extract item packets
 - [ ] Extract skill packets
-- [ ] Verify struct packing and endianness
-- [ ] Compare with packet captures where useful
+- [ ] Verify struct packing and endianness against original source
+- [ ] Compare handshake/login with real client packet captures
 
 ## Phase 8 — Handshake
 
-- [ ] Legacy handshake packet definitions
+- [x] Reference-confirmed legacy handshake packet definition
+- [ ] Compatibility-verified legacy handshake packet definition
 - [ ] Handshake handler
 - [ ] Connection state machine
 - [ ] Protocol version handling
