@@ -25,9 +25,10 @@
           "enum": ["client_to_server", "server_to_client", "bidirectional"]
         },
         "phase": {
-          "enum": ["handshake", "auth", "select", "loading", "game", "any"]
+          "enum": ["handshake", "login", "auth", "select", "loading", "game", "any"]
         },
         "size": { "enum": ["fixed", "variable"] },
+        "sequence": { "type": "boolean", "default": false },
         "since": { "type": "integer", "minimum": 1 },
         "until": { "type": "integer", "minimum": 1 },
         "fields": {
