@@ -12,7 +12,7 @@ internal static class FixedPacketCodecEmitter
 
     public static string Emit(PacketDefinition packet)
     {
-        int encodedSize = packet.Fields.Sum(static field =>
+        int payloadSize = packet.Fields.Sum(static field =>
         {
             _ = TryGetWireInfo(field.Type, out int size, out _, out _);
             return size;
@@ -24,7 +24,7 @@ internal static class FixedPacketCodecEmitter
         source.AppendLine();
         source.AppendLine($"public static class {packet.Name}Codec");
         source.AppendLine("{");
-        source.AppendLine($"    public const int EncodedSize = {encodedSize};");
+        source.AppendLine($"    public const int PayloadSize = {payloadSize};");
         source.AppendLine();
         EmitReader(source, packet);
         source.AppendLine();
@@ -38,7 +38,7 @@ internal static class FixedPacketCodecEmitter
         source.AppendLine($"    public static bool TryRead(ref global::Metin2.Protocol.IO.PacketReader reader, out {packet.Name} packet)");
         source.AppendLine("    {");
         source.AppendLine("        packet = default;");
-        source.AppendLine("        if (reader.Remaining < EncodedSize)");
+        source.AppendLine("        if (reader.Remaining < PayloadSize)");
         source.AppendLine("        {");
         source.AppendLine("            return false;");
         source.AppendLine("        }");
@@ -77,7 +77,7 @@ internal static class FixedPacketCodecEmitter
     {
         source.AppendLine($"    public static bool TryWrite(ref global::Metin2.Protocol.IO.PacketWriter writer, in {packet.Name} packet)");
         source.AppendLine("    {");
-        source.AppendLine("        if (writer.Remaining < EncodedSize)");
+        source.AppendLine("        if (writer.Remaining < PayloadSize)");
         source.AppendLine("        {");
         source.AppendLine("            return false;");
         source.AppendLine("        }");
