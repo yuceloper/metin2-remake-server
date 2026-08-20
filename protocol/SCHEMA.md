@@ -13,6 +13,7 @@ packets:
     direction: client_to_server
     phase: game
     size: fixed
+    sequence: false
     since: 1
     fields: []
 ```
@@ -25,9 +26,11 @@ Unique PascalCase packet name within the protocol.
 
 ### `opcode`
 
-Unsigned integer. Hex notation is preferred for readability.
+Unsigned protocol identifier. Hex notation is preferred for readability.
 
-Opcode uniqueness is validated within the applicable direction/phase namespace. Exact legacy collision rules can be specialized later if research proves they differ.
+The generic schema allows `0..65535`. A framing profile may further restrict this. The legacy Metin2 framing profile uses a one-byte header, therefore legacy definitions must fit `u8` even though the generic model is not permanently coupled to that width.
+
+Opcode uniqueness is validated within the applicable direction/phase namespace.
 
 ### `direction`
 
@@ -39,21 +42,36 @@ Allowed values:
 
 ### `phase`
 
-Connection-state metadata used for generated validation and documentation.
+Connection-state metadata used for generated validation and dispatch. It is **not automatically serialized**.
 
 Initial values:
 
 - `handshake`
+- `login`
 - `auth`
 - `select`
 - `loading`
 - `game`
 - `any`
 
+Important: generated `PacketPhase` values are internal dispatcher metadata. They must not be confused with any protocol packet that happens to contain a phase byte. Legacy Metin2 GCPhase wire values are documented separately.
+
 ### `size`
 
-- `fixed`: total size is known at generation time.
+- `fixed`: payload size is known at generation time.
 - `variable`: one or more fields determine payload length.
+
+### `sequence`
+
+Optional boolean, default `false`.
+
+```yaml
+sequence: true
+```
+
+This metadata tells a framing/session profile that the packet carries protocol-specific sequence framing. It does not add a normal payload field and is not encoded by payload codecs.
+
+For the researched legacy Metin2 profile, a sequenced packet has one trailing sequence byte after the payload.
 
 ### Version metadata
 
@@ -65,6 +83,38 @@ until: 3
 ```
 
 `since` is inclusive. `until` is inclusive when present.
+
+## Payload vs framing
+
+Generated packet codecs operate on packet **payload only**.
+
+They do not silently encode:
+
+- transport framing,
+- packet header/opcode bytes,
+- subheaders,
+- sequence bytes,
+- encryption envelopes.
+
+For a researched fixed legacy Metin2 frame:
+
+```text
+[ header:u8 ][ payload ][ optional sequence:u8 ]
+```
+
+A generated fixed codec exposes `PayloadSize`.
+
+The legacy frame layer can therefore compute:
+
+```text
+FrameSize = 1 + PayloadSize + (HasSequence ? 1 : 0)
+```
+
+This rule belongs to the legacy framing profile and must not constrain future/native protocol profiles.
+
+## Generated model metadata
+
+Generated packet models contain packet data only. Protocol metadata is emitted into a separate generated `<PacketName>Metadata` class so real payload fields such as `phase`, `opcode`, or `direction` can never collide with metadata members.
 
 ## Primitive wire types
 
@@ -106,7 +156,7 @@ Domain meaning is independent of wire storage.
 
 The generated C# packet model may expose `CharacterId`, while its codec reads/writes an unsigned 32-bit little-endian integer.
 
-`domainType` does not change packet size.
+`domainType` does not change packet size. Domain/wire width compatibility is validated at generation time.
 
 ## Fixed strings
 
@@ -187,7 +237,7 @@ Count-based arrays:
     type: CharacterSummary
 ```
 
-Complex/nested structures will be declared in `types` once Phase 3 requires them. V1 intentionally keeps the initial generator surface small.
+Complex/nested structures will be declared in `types` once required. V1 intentionally keeps the initial generator surface small.
 
 ## Field ordering
 
@@ -210,6 +260,7 @@ A build diagnostic must be emitted for at least:
 - `lengthFrom` referring to a later/nonexistent field
 - `domainType` incompatible with the declared wire primitive
 - duplicate field names
+- generated C# identifier collisions
 - invalid protocol version range
 - integer or packet size overflow
 
@@ -235,4 +286,10 @@ Packet YAML describes the wire contract, not application behavior.
 
 ## Legacy research
 
-Values discovered from the old source must be documented and then represented in this schema. Do not copy the legacy implementation into generated or handwritten server code.
+Values discovered from reference implementations must be documented with evidence/confidence and then represented in this schema. Do not copy legacy implementation architecture into generated or handwritten server code.
+
+Current research notes:
+
+```text
+docs/protocol/LEGACY_HANDSHAKE_AUTH.md
+```
