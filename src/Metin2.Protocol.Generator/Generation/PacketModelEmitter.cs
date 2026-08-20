@@ -20,6 +20,7 @@ internal static class PacketModelEmitter
         source.AppendLine($"    public const ushort Opcode = {packet.Opcode};");
         source.AppendLine($"    public const global::Metin2.Protocol.Generated.PacketDirection Direction = {MapDirection(packet.Direction)};");
         source.AppendLine($"    public const global::Metin2.Protocol.Generated.PacketPhase Phase = {MapPhase(packet.Phase)};");
+        source.AppendLine($"    public const bool HasSequence = {(packet.Sequence ? "true" : "false")};");
         source.AppendLine($"    public const int Since = {packet.Since};");
         source.AppendLine(packet.Until.HasValue
             ? $"    public static int? Until => {packet.Until.Value};"
@@ -99,6 +100,7 @@ internal static class PacketModelEmitter
         return phase switch
         {
             "handshake" => "global::Metin2.Protocol.Generated.PacketPhase.Handshake",
+            "login" => "global::Metin2.Protocol.Generated.PacketPhase.Login",
             "auth" => "global::Metin2.Protocol.Generated.PacketPhase.Auth",
             "select" => "global::Metin2.Protocol.Generated.PacketPhase.Select",
             "loading" => "global::Metin2.Protocol.Generated.PacketPhase.Loading",
