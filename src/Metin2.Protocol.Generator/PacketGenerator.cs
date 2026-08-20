@@ -106,14 +106,16 @@ public sealed class PacketGenerator : IIncrementalGenerator
                 Bidirectional = 3
             }
 
+            // Dispatcher connection state metadata. These values are not legacy GCPhase wire values.
             public enum PacketPhase : byte
             {
                 Any = 0,
                 Handshake = 1,
-                Auth = 2,
-                Select = 3,
-                Loading = 4,
-                Game = 5
+                Login = 2,
+                Auth = 3,
+                Select = 4,
+                Loading = 5,
+                Game = 6
             }
 
             internal static class ProtocolManifest
