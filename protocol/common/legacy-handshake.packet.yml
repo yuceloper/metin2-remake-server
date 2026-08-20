@@ -1,0 +1,20 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Core/Core/Packets/GCHandshake.cs
+# Final compatibility must still be cross-checked against the original client/server source or a packet capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: Handshake
+    opcode: 0xFF
+    direction: bidirectional
+    phase: handshake
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: handshake
+        type: u32le
+      - name: time
+        type: u32le
+      - name: delta
+        type: u32le
