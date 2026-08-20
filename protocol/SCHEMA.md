@@ -54,7 +54,7 @@ Initial values:
 - `game`
 - `any`
 
-Important: generated `PacketPhase` values are internal dispatcher metadata. They must not be confused with any protocol packet that happens to contain a phase byte. Legacy Metin2 GCPhase wire values are documented separately.
+Generated `PacketPhase` values are internal dispatcher metadata. They are not legacy GCPhase wire values.
 
 ### `size`
 
@@ -69,84 +69,50 @@ Optional boolean, default `false`.
 sequence: true
 ```
 
-This metadata tells a framing/session profile that the packet carries protocol-specific sequence framing. It does not add a normal payload field and is not encoded by payload codecs.
-
-For the researched legacy Metin2 profile, a sequenced packet has one trailing sequence byte after the payload.
+This tells a framing/session profile that the packet carries protocol-specific sequence framing. It is not a normal payload field and is not encoded by payload codecs.
 
 ### Version metadata
-
-Optional:
 
 ```yaml
 since: 1
 until: 3
 ```
 
-`since` is inclusive. `until` is inclusive when present.
+Both bounds are inclusive.
 
 ## Payload vs framing
 
-Generated packet codecs operate on packet **payload only**.
+Generated packet codecs operate on **payload only**. They do not silently encode transport framing, header/opcode bytes, sequence bytes or encryption envelopes.
 
-They do not silently encode:
-
-- transport framing,
-- packet header/opcode bytes,
-- subheaders,
-- sequence bytes,
-- encryption envelopes.
-
-For a researched fixed legacy Metin2 frame:
+For the researched fixed legacy profile:
 
 ```text
 [ header:u8 ][ payload ][ optional sequence:u8 ]
-```
-
-A generated fixed codec exposes `PayloadSize`.
-
-The legacy frame layer can therefore compute:
-
-```text
 FrameSize = 1 + PayloadSize + (HasSequence ? 1 : 0)
 ```
 
-This rule belongs to the legacy framing profile and must not constrain future/native protocol profiles.
+This rule is legacy-profile specific.
 
 ## Generated model metadata
 
-Generated packet models contain packet data only. Protocol metadata is emitted into a separate generated `<PacketName>Metadata` class so real payload fields such as `phase`, `opcode`, or `direction` can never collide with metadata members.
+Generated packet models contain packet data only. Protocol metadata is emitted into a separate generated `<PacketName>Metadata` class so payload fields such as `phase`, `opcode` or `direction` cannot collide with metadata members.
 
 ## Primitive wire types
 
-Endianness is explicit whenever width is greater than one byte.
+Endianness is explicit for multi-byte primitives:
 
 ```text
-u8
-i8
-u16le
-u16be
-i16le
-i16be
-u32le
-u32be
-i32le
-i32be
-u64le
-u64be
-i64le
-i64be
-f32le
-f32be
-f64le
-f64be
+u8 i8
+u16le u16be i16le i16be
+u32le u32be i32le i32be
+u64le u64be i64le i64be
+f32le f32be f64le f64be
 bool8
 ```
 
-The generator must never use machine-native endianness.
+Machine-native endianness is never implied.
 
 ## Strong/domain IDs
-
-Domain meaning is independent of wire storage.
 
 ```yaml
 - name: character_id
@@ -154,9 +120,7 @@ Domain meaning is independent of wire storage.
   domainType: CharacterId
 ```
 
-The generated C# packet model may expose `CharacterId`, while its codec reads/writes an unsigned 32-bit little-endian integer.
-
-`domainType` does not change packet size. Domain/wire width compatibility is validated at generation time.
+The generated model exposes the domain type while the codec preserves the declared wire primitive. Domain/wire width compatibility is validated at generation time.
 
 ## Fixed strings
 
@@ -165,23 +129,22 @@ The generated C# packet model may expose `CharacterId`, while its codec reads/wr
   type: fixed_string
   length: 31
   encoding: ascii
-  termination: null
-  trim: null
+  termination: "null"
+  trim: "null"
 ```
 
-Required:
+`"null"` is intentionally quoted: unquoted YAML `null` is a null value, not the string policy name.
+
+Required metadata:
 
 - `length`: byte capacity on the wire
-- `encoding`: initially `ascii`, `utf8`, or `latin1`
+- `encoding`: `ascii`, `utf8`, or `latin1` at schema level
+- `termination`: `"null"` or `none`
+- `trim`: `"null"` or `none` when specified
 
-`termination`:
+The current legacy fixed-string codec path implements ASCII + null termination, which matches the inspected login protocol reference. Other declared schema combinations remain future codec work.
 
-- `null`
-- `none`
-
-`trim` controls bytes stripped after decode. `null` means trim trailing zero bytes.
-
-The generator must validate encoded length before serialization.
+A null-terminated fixed field reserves one byte for its terminator. A 31-byte field therefore accepts at most 30 ASCII bytes in the current writer.
 
 ## Variable strings
 
@@ -216,17 +179,19 @@ Count-based:
 
 ## Arrays
 
-Fixed arrays:
+Fixed primitive arrays:
 
 ```yaml
-- name: points
+- name: key
   type: array
   length: 4
   element:
     type: u32le
 ```
 
-Count-based arrays:
+The current fixed codec path supports scalar primitive elements and generates `ReadOnlyMemory<T>` packet fields.
+
+Count-based arrays remain future work:
 
 ```yaml
 - name: characters
@@ -237,58 +202,41 @@ Count-based arrays:
     type: CharacterSummary
 ```
 
-Complex/nested structures will be declared in `types` once required. V1 intentionally keeps the initial generator surface small.
+Complex/nested structure declarations will be introduced only when a real protocol requirement justifies them.
 
 ## Field ordering
 
-Field order in YAML is wire order and is therefore significant.
-
-The generator must preserve it exactly.
+YAML field order is wire order and must be preserved exactly.
 
 ## Validation rules
 
-A build diagnostic must be emitted for at least:
+Build diagnostics cover or are expected to cover:
 
-- duplicate packet name
-- invalid or duplicate opcode for the same namespace
-- unsupported direction or phase
-- unsupported wire type
-- missing explicit endianness
-- fixed packet containing an unbounded variable field
-- invalid fixed-string length
-- variable field without a maximum length
-- `lengthFrom` referring to a later/nonexistent field
-- `domainType` incompatible with the declared wire primitive
-- duplicate field names
-- generated C# identifier collisions
-- invalid protocol version range
-- integer or packet size overflow
+- duplicate packet names/opcodes
+- unsupported direction/phase/wire type
+- invalid generated C# identifiers or collisions
+- invalid fixed-string length/encoding/termination policy
+- fixed arrays without positive length/element metadata
+- unsupported fixed-array element types
+- variable fields without bounds
+- invalid `lengthFrom`
+- incompatible `domainType`/wire primitive
+- invalid version ranges
+- packet-size overflow
 
 ## Security rules
 
-Definitions of variable-size data must always provide a maximum bound.
-
-Generated readers must reject malformed/truncated payloads and lengths that exceed declared maximums before allocating or advancing the reader.
+Variable-size definitions require explicit upper bounds. Generated readers reject malformed/truncated payloads before unsafe advancement/allocation. Generated fixed writers prevalidate capacity and fixed-field shape before writing packet data.
 
 ## What does not belong in YAML
 
-Do not put these in protocol definitions:
-
-- damage formulas
-- login rules
-- movement validation
-- database mappings
-- quest logic
-- permissions
-- service names
-
-Packet YAML describes the wire contract, not application behavior.
+Do not encode gameplay rules, database mappings, permissions, service names, login policy or quest logic in protocol YAML. YAML describes the wire contract only.
 
 ## Legacy research
 
-Values discovered from reference implementations must be documented with evidence/confidence and then represented in this schema. Do not copy legacy implementation architecture into generated or handwritten server code.
+Reference-derived values must carry evidence/confidence and must not import legacy implementation architecture.
 
-Current research notes:
+Current research note:
 
 ```text
 docs/protocol/LEGACY_HANDSHAKE_AUTH.md
