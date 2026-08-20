@@ -20,47 +20,56 @@
 
 ## Phase 1 — Shared Kernel
 
-- [x] CharacterId
-- [x] AccountId
-- [x] ItemId
-- [x] GuildId
-- [x] MapId
-- [x] EntityId
-- [x] MonsterId
-- [x] Minimal result/error abstractions
-- [x] Domain event primitives
+- [ ] CharacterId
+- [ ] AccountId
+- [ ] ItemId
+- [ ] GuildId
+- [ ] MapId
+- [ ] EntityId
+- [ ] MonsterId
+- [ ] Minimal result/error abstractions
+- [ ] Domain event primitives
 
 ## Phase 2 — Protocol Definition Format
 
-- [ ] Decide YAML vs custom DSL
-- [ ] Define opcode metadata
-- [ ] Define packet direction
-- [ ] Primitive field types
-- [ ] Fixed-length strings
-- [ ] Variable-length strings
-- [ ] Byte arrays
-- [ ] Strong ID support
-- [ ] Array support
-- [ ] Protocol version metadata
-- [ ] Packet-size metadata
-- [ ] Validation rules
+- [x] Decide YAML vs custom DSL
+- [x] Define opcode metadata
+- [x] Define packet direction
+- [x] Primitive field types
+- [x] Fixed-length strings
+- [x] Variable-length strings
+- [x] Byte arrays
+- [x] Strong ID support
+- [x] Array support
+- [x] Protocol version metadata
+- [x] Packet-size metadata
+- [x] Validation rules
+- [x] Packet sequence metadata
+- [x] Define payload-vs-framing boundary
 
 ## Phase 3 — Roslyn Packet Generator
 
-- [ ] Create `Metin2.Protocol.Generator`
-- [ ] Parse packet definitions
-- [ ] Generator diagnostics
-- [ ] Generate packet models
-- [ ] Generate opcode constants
-- [ ] Generate serializers
-- [ ] Generate deserializers
+- [x] Create `Metin2.Protocol.Generator`
+- [x] Parse packet definitions
+- [x] Generator diagnostics
+- [x] Generate packet models
+- [x] Generate opcode constants
+- [ ] Complete serializers for every schema field kind
+- [ ] Complete deserializers for every schema field kind
 - [ ] Generate packet registry
-- [ ] Direction validation
-- [ ] Size validation
-- [ ] Strong ID serialization
-- [ ] Generator tests
+- [x] Direction validation
+- [x] Fixed payload-size calculation for scalar/string/primitive-array packets
+- [x] Strong ID serialization for fixed scalar codecs
+- [x] Generate fixed-layout primitive codecs
+- [x] Generate legacy fixed ASCII null-terminated string codecs
+- [x] Generate fixed primitive-array codecs
+- [x] Expose fixed `PayloadSize` semantics
+- [ ] Generate fixed raw-byte codecs
+- [ ] Generate variable-length string/bytes/array codecs
+- [x] Generator tests
+- [x] Runtime packet IO tests for fixed ASCII behavior
 - [ ] Snapshot/golden tests
-- [ ] Verify no runtime reflection
+- [x] Verify no runtime reflection
 - [ ] Allocation benchmarks
 
 ## Phase 4 — Protocol Documentation
@@ -81,6 +90,8 @@
 - [ ] GameSession
 - [ ] System.IO.Pipelines receive pipeline
 - [ ] Send pipeline
+- [ ] Legacy one-byte header framing profile
+- [ ] Optional trailing sequence-byte framing
 - [ ] Frame decoder/encoder
 - [ ] Packet decoder/encoder
 - [ ] Graceful disconnect
@@ -106,9 +117,20 @@
 
 ## Phase 7 — Legacy Protocol Research
 
-- [ ] Extract packet headers from legacy reference source
-- [ ] Document handshake flow
-- [ ] Document login protocol
+- [ ] Extract packet headers from legacy reference source (ongoing)
+- [x] Document handshake flow from reference implementation
+- [x] Document phase packet and reference wire values
+- [x] Document auth login request reference layout
+- [x] Document auth login success/failure reference layouts
+- [x] Document game TokenLogin reference layout and Login phase
+- [x] Document legacy fixed-string behavior
+- [x] Document legacy header/payload/sequence framing behavior
+- [x] Add reference-confirmed Handshake YAML
+- [x] Add reference-confirmed Phase YAML
+- [x] Add reference-confirmed LoginRequest YAML
+- [x] Add reference-confirmed LoginSuccess YAML
+- [x] Add reference-confirmed LoginFailed YAML
+- [x] Add reference-confirmed TokenLogin YAML
 - [ ] Extract character selection protocol
 - [ ] Extract game-enter protocol
 - [ ] Extract movement packets
@@ -117,12 +139,15 @@
 - [ ] Extract combat packets
 - [ ] Extract item packets
 - [ ] Extract skill packets
-- [ ] Verify struct packing and endianness
-- [ ] Compare with packet captures where useful
+- [ ] Verify struct packing and endianness against original source
+- [ ] Compare handshake/login with real client packet captures
+- [ ] Resolve sequence progression/validation semantics
+- [ ] Verify encryption activation boundary around TokenLogin
 
 ## Phase 8 — Handshake
 
-- [ ] Legacy handshake packet definitions
+- [x] Reference-confirmed legacy handshake packet definition
+- [ ] Compatibility-verified legacy handshake packet definition
 - [ ] Handshake handler
 - [ ] Connection state machine
 - [ ] Protocol version handling
@@ -137,7 +162,7 @@
 - [ ] Password hashing strategy
 - [ ] Login request handler
 - [ ] Login application service
-- [ ] Login response packets
+- [x] Reference-confirmed login request/result packet definitions
 - [ ] Session authentication state
 - [ ] Duplicate-login policy
 - [ ] Brute-force/rate limiting policy

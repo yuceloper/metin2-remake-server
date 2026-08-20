@@ -1,0 +1,312 @@
+using System.Collections.Immutable;
+using Metin2.Protocol.Generator.Model;
+using Metin2.Protocol.Generator.Parsing;
+using Metin2.Protocol.Generator.Validation;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace Metin2.Protocol.Generator.Tests;
+
+[TestClass]
+public sealed class PacketGeneratorTests
+{
+    private const string ValidYaml = """
+        schema: 1
+        protocol: test
+        packets:
+          - name: Ping
+            opcode: 1
+            direction: client_to_server
+            phase: game
+            size: fixed
+            since: 1
+            fields:
+              - name: value
+                type: u32le
+        """;
+
+    [TestMethod]
+    public void Parser_ParsesValidDefinition()
+    {
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(ValidYaml);
+
+        Assert.AreEqual(1, document.Schema);
+        Assert.AreEqual("test", document.Protocol);
+        Assert.AreEqual(1, document.Packets.Count);
+        Assert.AreEqual("Ping", document.Packets[0].Name);
+        Assert.AreEqual(1, document.Packets[0].Opcode);
+        Assert.IsFalse(document.Packets[0].Sequence);
+    }
+
+    [TestMethod]
+    public void Parser_ParsesSequenceMetadata()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Login
+                opcode: 111
+                direction: client_to_server
+                phase: auth
+                size: fixed
+                sequence: true
+                fields: []
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+
+        Assert.IsTrue(document.Packets[0].Sequence);
+    }
+
+    [TestMethod]
+    public void Validator_RejectsDuplicateOpcodeInSameNamespace()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: First
+                opcode: 1
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields: []
+              - name: Second
+                opcode: 1
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields: []
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "DuplicateOpcode"));
+    }
+
+    [TestMethod]
+    public void Validator_RejectsUnboundedVariableField()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Chat
+                opcode: 2
+                direction: client_to_server
+                phase: game
+                size: variable
+                fields:
+                  - name: message
+                    type: string
+                    encoding: utf8
+                    lengthType: u16le
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "UnboundedVariableField"));
+    }
+
+    [TestMethod]
+    public void Validator_RejectsGeneratedFieldNameCollision()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Collision
+                opcode: 3
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: foo_bar
+                    type: u8
+                  - name: foo-bar
+                    type: u8
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "GeneratedFieldNameCollision"));
+    }
+
+    [TestMethod]
+    public void Validator_RejectsDomainWireTypeMismatch()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: BrokenItem
+                opcode: 4
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: item_id
+                    type: u32le
+                    domainType: ItemId
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+        IReadOnlyList<ValidationFailure> failures = PacketDefinitionValidator.Validate(document);
+
+        Assert.IsTrue(failures.Any(static failure => failure.Code == "DomainWireTypeMismatch"));
+    }
+
+    [TestMethod]
+    public void Generator_EmitsTypedMetadataAndPacketModelForValidAdditionalFile()
+    {
+        GeneratorDriverRunResult runResult = RunGenerator(ValidYaml);
+
+        Assert.AreEqual(1, runResult.Results.Length);
+        GeneratedSourceResult metadataSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "ProtocolMetadata.g.cs");
+        string metadata = metadataSource.SourceText.ToString();
+        StringAssert.Contains(metadata, "public enum PacketDirection : byte");
+        StringAssert.Contains(metadata, "public enum PacketPhase : byte");
+        StringAssert.Contains(metadata, "Login = 2");
+
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Ping.g.cs");
+        string generated = packetSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "public readonly partial record struct Ping(");
+        StringAssert.Contains(generated, "uint Value");
+        StringAssert.Contains(generated, "public const ushort Opcode = 1;");
+        StringAssert.Contains(generated, "PacketDirection.ClientToServer");
+        StringAssert.Contains(generated, "PacketPhase.Game");
+        StringAssert.Contains(generated, "public const bool HasSequence = false;");
+    }
+
+    [TestMethod]
+    public void Generator_EmitsSequenceMetadataWhenEnabled()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Sequenced
+                opcode: 42
+                direction: client_to_server
+                phase: auth
+                size: fixed
+                sequence: true
+                fields: []
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Sequenced.g.cs");
+        StringAssert.Contains(packetSource.SourceText.ToString(), "public const bool HasSequence = true;");
+    }
+
+    [TestMethod]
+    public void Generator_UsesStrongDomainTypeInsteadOfRawWirePrimitive()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: CharacterMove
+                opcode: 16
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: character_id
+                    type: u32le
+                    domainType: CharacterId
+                  - name: rotation
+                    type: f32le
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.CharacterMove.g.cs");
+        string generated = packetSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "global::Metin2.Shared.Identity.CharacterId CharacterId");
+        StringAssert.Contains(generated, "float Rotation");
+        Assert.IsFalse(generated.Contains("uint CharacterId", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void Generator_EmitsFixedCodecWithPayloadSizeAndStrongIdBoundaryMapping()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: CharacterMove
+                opcode: 16
+                direction: client_to_server
+                phase: game
+                size: fixed
+                fields:
+                  - name: character_id
+                    type: u32le
+                    domainType: CharacterId
+                  - name: rotation
+                    type: f32le
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult codecSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Codecs.CharacterMove.g.cs");
+        string generated = codecSource.SourceText.ToString();
+
+        StringAssert.Contains(generated, "public const int PayloadSize = 8;");
+        StringAssert.Contains(generated, "if (reader.Remaining < PayloadSize)");
+        StringAssert.Contains(generated, "new global::Metin2.Shared.Identity.CharacterId(characterIdRaw)");
+        StringAssert.Contains(generated, "writer.TryWriteUInt32LittleEndian(packet.CharacterId.Value)");
+        StringAssert.Contains(generated, "writer.TryWriteSingleLittleEndian(packet.Rotation)");
+    }
+
+    private static GeneratorDriverRunResult RunGenerator(string yaml)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("namespace Consumer; public static class Marker { }");
+        MetadataReference coreLibrary = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+        CSharpCompilation compilation = CSharpCompilation.Create(
+            assemblyName: "Consumer",
+            syntaxTrees: new[] { syntaxTree },
+            references: new[] { coreLibrary },
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: new[] { new PacketGenerator().AsSourceGenerator() },
+            additionalTexts: new AdditionalText[] { new InMemoryAdditionalText("test.packet.yml", yaml) },
+            parseOptions: (CSharpParseOptions)syntaxTree.Options);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out ImmutableArray<Diagnostic> diagnostics);
+        Assert.IsFalse(diagnostics.Any(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        return driver.GetRunResult();
+    }
+
+    private sealed class InMemoryAdditionalText : AdditionalText
+    {
+        private readonly SourceText _text;
+
+        public InMemoryAdditionalText(string path, string content)
+        {
+            Path = path;
+            _text = SourceText.From(content);
+        }
+
+        public override string Path { get; }
+
+        public override SourceText GetText(CancellationToken cancellationToken = default)
+        {
+            return _text;
+        }
+    }
+}

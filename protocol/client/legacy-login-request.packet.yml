@@ -1,0 +1,33 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Auth/Packets/LoginRequest.cs
+# - yuceloper/new-metin src/Core.Networking/SerializerExtensions.cs
+# Final compatibility must still be verified against original source/client traffic.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: LoginRequest
+    opcode: 0x6F
+    direction: client_to_server
+    phase: auth
+    size: fixed
+    sequence: true
+    since: 1
+    fields:
+      - name: username
+        type: fixed_string
+        length: 31
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: password
+        type: fixed_string
+        length: 17
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: encrypt_key
+        type: array
+        length: 4
+        element:
+          type: u32le

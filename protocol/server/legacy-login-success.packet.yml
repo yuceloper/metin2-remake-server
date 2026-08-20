@@ -1,0 +1,18 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Auth/Packets/LoginSuccess.cs
+# Final compatibility must still be cross-checked against original source/client traffic.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: LoginSuccess
+    opcode: 0x96
+    direction: server_to_client
+    phase: auth
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: key
+        type: u32le
+      - name: result
+        type: u8

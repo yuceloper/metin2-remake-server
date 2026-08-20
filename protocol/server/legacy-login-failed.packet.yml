@@ -1,0 +1,23 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Auth/Packets/LoginFailed.cs
+# - yuceloper/new-metin src/Core.Networking/SerializerExtensions.cs
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: LoginFailed
+    opcode: 0x07
+    direction: server_to_client
+    phase: auth
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: unknown
+        type: u8
+      - name: status
+        type: fixed_string
+        length: 9
+        encoding: ascii
+        termination: "null"
+        trim: "null"
