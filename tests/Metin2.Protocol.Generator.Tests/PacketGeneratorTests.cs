@@ -38,6 +38,29 @@ public sealed class PacketGeneratorTests
         Assert.AreEqual(1, document.Packets.Count);
         Assert.AreEqual("Ping", document.Packets[0].Name);
         Assert.AreEqual(1, document.Packets[0].Opcode);
+        Assert.IsFalse(document.Packets[0].Sequence);
+    }
+
+    [TestMethod]
+    public void Parser_ParsesSequenceMetadata()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Login
+                opcode: 111
+                direction: client_to_server
+                phase: auth
+                size: fixed
+                sequence: true
+                fields: []
+            """;
+
+        var parser = new PacketDefinitionParser();
+        PacketDocument document = parser.Parse(yaml);
+
+        Assert.IsTrue(document.Packets[0].Sequence);
     }
 
     [TestMethod]
@@ -155,6 +178,7 @@ public sealed class PacketGeneratorTests
         string metadata = metadataSource.SourceText.ToString();
         StringAssert.Contains(metadata, "public enum PacketDirection : byte");
         StringAssert.Contains(metadata, "public enum PacketPhase : byte");
+        StringAssert.Contains(metadata, "Login = 2");
 
         GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Ping.g.cs");
         string generated = packetSource.SourceText.ToString();
@@ -164,6 +188,28 @@ public sealed class PacketGeneratorTests
         StringAssert.Contains(generated, "public const ushort Opcode = 1;");
         StringAssert.Contains(generated, "PacketDirection.ClientToServer");
         StringAssert.Contains(generated, "PacketPhase.Game");
+        StringAssert.Contains(generated, "public const bool HasSequence = false;");
+    }
+
+    [TestMethod]
+    public void Generator_EmitsSequenceMetadataWhenEnabled()
+    {
+        const string yaml = """
+            schema: 1
+            protocol: test
+            packets:
+              - name: Sequenced
+                opcode: 42
+                direction: client_to_server
+                phase: auth
+                size: fixed
+                sequence: true
+                fields: []
+            """;
+
+        GeneratorDriverRunResult runResult = RunGenerator(yaml);
+        GeneratedSourceResult packetSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Packets.Sequenced.g.cs");
+        StringAssert.Contains(packetSource.SourceText.ToString(), "public const bool HasSequence = true;");
     }
 
     [TestMethod]
@@ -196,7 +242,7 @@ public sealed class PacketGeneratorTests
     }
 
     [TestMethod]
-    public void Generator_EmitsFixedCodecWithStaticSizeAndStrongIdBoundaryMapping()
+    public void Generator_EmitsFixedCodecWithPayloadSizeAndStrongIdBoundaryMapping()
     {
         const string yaml = """
             schema: 1
@@ -219,8 +265,8 @@ public sealed class PacketGeneratorTests
         GeneratedSourceResult codecSource = runResult.Results[0].GeneratedSources.Single(static source => source.HintName == "Codecs.CharacterMove.g.cs");
         string generated = codecSource.SourceText.ToString();
 
-        StringAssert.Contains(generated, "public const int EncodedSize = 8;");
-        StringAssert.Contains(generated, "if (reader.Remaining < EncodedSize)");
+        StringAssert.Contains(generated, "public const int PayloadSize = 8;");
+        StringAssert.Contains(generated, "if (reader.Remaining < PayloadSize)");
         StringAssert.Contains(generated, "new global::Metin2.Shared.Identity.CharacterId(characterIdRaw)");
         StringAssert.Contains(generated, "writer.TryWriteUInt32LittleEndian(packet.CharacterId.Value)");
         StringAssert.Contains(generated, "writer.TryWriteSingleLittleEndian(packet.Rotation)");
