@@ -54,17 +54,20 @@
 - [x] Generator diagnostics
 - [x] Generate packet models
 - [x] Generate opcode constants
-- [ ] Generate serializers
-- [ ] Generate deserializers
+- [ ] Complete serializers for every schema field kind
+- [ ] Complete deserializers for every schema field kind
 - [ ] Generate packet registry
 - [x] Direction validation
-- [ ] Size validation
+- [x] Fixed payload-size calculation for scalar/string/primitive-array packets
 - [x] Strong ID serialization for fixed scalar codecs
 - [x] Generate fixed-layout primitive codecs
+- [x] Generate legacy fixed ASCII null-terminated string codecs
+- [x] Generate fixed primitive-array codecs
 - [x] Expose fixed `PayloadSize` semantics
-- [ ] Generate fixed-string/bytes codecs
-- [ ] Generate variable-length/array codecs
+- [ ] Generate fixed raw-byte codecs
+- [ ] Generate variable-length string/bytes/array codecs
 - [x] Generator tests
+- [x] Runtime packet IO tests for fixed ASCII behavior
 - [ ] Snapshot/golden tests
 - [x] Verify no runtime reflection
 - [ ] Allocation benchmarks
@@ -118,10 +121,16 @@
 - [x] Document handshake flow from reference implementation
 - [x] Document phase packet and reference wire values
 - [x] Document auth login request reference layout
+- [x] Document auth login success/failure reference layouts
+- [x] Document game TokenLogin reference layout and Login phase
+- [x] Document legacy fixed-string behavior
 - [x] Document legacy header/payload/sequence framing behavior
 - [x] Add reference-confirmed Handshake YAML
 - [x] Add reference-confirmed Phase YAML
-- [ ] Add LoginRequest YAML after fixed-string/array support and final layout verification
+- [x] Add reference-confirmed LoginRequest YAML
+- [x] Add reference-confirmed LoginSuccess YAML
+- [x] Add reference-confirmed LoginFailed YAML
+- [x] Add reference-confirmed TokenLogin YAML
 - [ ] Extract character selection protocol
 - [ ] Extract game-enter protocol
 - [ ] Extract movement packets
@@ -132,6 +141,8 @@
 - [ ] Extract skill packets
 - [ ] Verify struct packing and endianness against original source
 - [ ] Compare handshake/login with real client packet captures
+- [ ] Resolve sequence progression/validation semantics
+- [ ] Verify encryption activation boundary around TokenLogin
 
 ## Phase 8 — Handshake
 
@@ -151,7 +162,7 @@
 - [ ] Password hashing strategy
 - [ ] Login request handler
 - [ ] Login application service
-- [ ] Login response packets
+- [x] Reference-confirmed login request/result packet definitions
 - [ ] Session authentication state
 - [ ] Duplicate-login policy
 - [ ] Brute-force/rate limiting policy
