@@ -61,7 +61,8 @@ internal sealed class FieldDefinition
         int? maxLength,
         string? encoding,
         string? termination,
-        string? trim)
+        string? trim,
+        ElementDefinition? element)
     {
         Name = name;
         Type = type;
@@ -73,6 +74,7 @@ internal sealed class FieldDefinition
         Encoding = encoding;
         Termination = termination;
         Trim = trim;
+        Element = element;
     }
 
     public string Name { get; }
@@ -85,4 +87,17 @@ internal sealed class FieldDefinition
     public string? Encoding { get; }
     public string? Termination { get; }
     public string? Trim { get; }
+    public ElementDefinition? Element { get; }
+}
+
+internal sealed class ElementDefinition
+{
+    public ElementDefinition(string type, string? domainType)
+    {
+        Type = type;
+        DomainType = domainType;
+    }
+
+    public string Type { get; }
+    public string? DomainType { get; }
 }
