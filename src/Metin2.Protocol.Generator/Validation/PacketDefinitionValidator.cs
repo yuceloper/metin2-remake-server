@@ -16,6 +16,7 @@ internal static class PacketDefinitionValidator
     private static readonly HashSet<string> Phases = new(StringComparer.Ordinal)
     {
         "handshake",
+        "login",
         "auth",
         "select",
         "loading",
