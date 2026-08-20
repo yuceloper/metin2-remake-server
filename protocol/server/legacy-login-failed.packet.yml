@@ -19,5 +19,5 @@ packets:
         type: fixed_string
         length: 9
         encoding: ascii
-        termination: null
-        trim: null
+        termination: "null"
+        trim: "null"
