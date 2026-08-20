@@ -22,6 +22,7 @@ internal sealed class PacketDefinition
         string direction,
         string phase,
         string size,
+        bool sequence,
         int since,
         int? until,
         IReadOnlyList<FieldDefinition> fields)
@@ -31,6 +32,7 @@ internal sealed class PacketDefinition
         Direction = direction;
         Phase = phase;
         Size = size;
+        Sequence = sequence;
         Since = since;
         Until = until;
         Fields = fields;
@@ -41,6 +43,7 @@ internal sealed class PacketDefinition
     public string Direction { get; }
     public string Phase { get; }
     public string Size { get; }
+    public bool Sequence { get; }
     public int Since { get; }
     public int? Until { get; }
     public IReadOnlyList<FieldDefinition> Fields { get; }
