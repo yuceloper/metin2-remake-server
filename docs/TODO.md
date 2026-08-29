@@ -84,7 +84,7 @@
 
 ## Phase 5 — Networking Foundation
 
-- [ ] TCP listener
+- [x] TCP listener
 - [x] Socket lifecycle
 - [x] Connection abstraction
 - [x] GameSession
