@@ -26,13 +26,15 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
     private readonly IServerTimeProvider _timeProvider;
     private readonly LegacyHandshakeState _state;
     private readonly PacketPhase _nextPhase;
+    private readonly Func<GameSession, CancellationToken, ValueTask>? _onCompleted;
 
     public LegacyHandshakeDispatchTarget(
         GameSession session,
         PipeWriter output,
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource tokenSource,
-        PacketPhase nextPhase)
+        PacketPhase nextPhase,
+        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(output);
@@ -48,6 +50,7 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         _output = output;
         _timeProvider = timeProvider;
         _nextPhase = nextPhase;
+        _onCompleted = onCompleted;
         _state = new LegacyHandshakeState(tokenSource.NextToken());
     }
 
@@ -69,6 +72,10 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         {
             case LegacyHandshakeDecision.Completed:
                 _session.TransitionTo(_nextPhase);
+                if (_onCompleted is not null)
+                {
+                    await _onCompleted(_session, cancellationToken).ConfigureAwait(false);
+                }
                 return;
 
             case LegacyHandshakeDecision.Retry:
