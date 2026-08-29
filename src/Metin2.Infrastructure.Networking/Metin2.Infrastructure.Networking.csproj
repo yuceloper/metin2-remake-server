@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Metin2.Protocol/Metin2.Protocol.csproj" />
+    <ProjectReference Include="../Modules/Metin2.Modules.Auth/Metin2.Modules.Auth.csproj" />
   </ItemGroup>
 </Project>
