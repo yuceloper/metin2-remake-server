@@ -97,8 +97,7 @@ internal static class FixedPacketCodecEmitter
 
     private static void EmitFieldRead(StringBuilder source, FieldDefinition field)
     {
-        string propertyName = PacketModelEmitter.ToPascalCase(field.Name);
-        string localName = ToCamelCase(propertyName);
+        string localName = ToCamelCase(PacketModelEmitter.ToPascalCase(field.Name));
 
         if (TryGetScalarWireInfo(field.Type, out _, out string rawType, out string readMethod))
         {
@@ -133,7 +132,7 @@ internal static class FixedPacketCodecEmitter
 
         foreach (FieldDefinition field in packet.Fields)
         {
-            string propertyName = PacketModelEmitter.ToPascalCase(field.Name);
+            string propertyName = PacketModelEmitter.GetMemberName(packet, field);
             if (field.Type == "fixed_string")
             {
                 source.AppendLine($"        if (global::System.Text.Encoding.ASCII.GetByteCount(packet.{propertyName} ?? string.Empty) > {field.Length!.Value - 1}) return false;");
@@ -148,16 +147,16 @@ internal static class FixedPacketCodecEmitter
 
         foreach (FieldDefinition field in packet.Fields)
         {
-            EmitFieldWrite(source, field);
+            EmitFieldWrite(source, packet, field);
         }
 
         source.AppendLine("        return true;");
         source.AppendLine("    }");
     }
 
-    private static void EmitFieldWrite(StringBuilder source, FieldDefinition field)
+    private static void EmitFieldWrite(StringBuilder source, PacketDefinition packet, FieldDefinition field)
     {
-        string propertyName = PacketModelEmitter.ToPascalCase(field.Name);
+        string propertyName = PacketModelEmitter.GetMemberName(packet, field);
 
         if (TryGetScalarWireInfo(field.Type, out _, out _, out string readMethod))
         {
