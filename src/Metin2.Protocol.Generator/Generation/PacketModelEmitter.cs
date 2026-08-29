@@ -38,9 +38,17 @@ internal static class PacketModelEmitter
         }
 
         string parameters = string.Join(",\n    ", packet.Fields.Select(field =>
-            $"{MapFieldType(field)} {ToPascalCase(field.Name)}"));
+            $"{MapFieldType(field)} {GetMemberName(packet, field)}"));
 
         return $"public readonly partial record struct {packet.Name}(\n    {parameters})";
+    }
+
+    internal static string GetMemberName(PacketDefinition packet, FieldDefinition field)
+    {
+        string candidate = ToPascalCase(field.Name);
+        return string.Equals(candidate, packet.Name, StringComparison.Ordinal)
+            ? candidate + "Value"
+            : candidate;
     }
 
     internal static string MapFieldType(FieldDefinition field)
