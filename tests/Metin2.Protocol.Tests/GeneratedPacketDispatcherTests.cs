@@ -98,7 +98,7 @@ public sealed class GeneratedPacketDispatcherTests
     {
         destination.Clear();
         int written = Encoding.ASCII.GetBytes(value, destination);
-        Assert.IsLessThan(destination.Length, written + 1);
+        Assert.IsTrue(written < destination.Length);
     }
 
     private static ReadOnlySequence<byte> CreateSequence(ReadOnlyMemory<byte> first, ReadOnlyMemory<byte> second)
