@@ -154,7 +154,7 @@
 - [x] Legacy phase announcements (`FD 01`, `FD 0A`, `FD 02`)
 - [ ] Protocol version handling
 - [x] Reject invalid handshake
-- [ ] Test client
+- [x] Test client
 - [ ] Verify real Metin2 client connection
 
 ## Phase 9 — Authentication

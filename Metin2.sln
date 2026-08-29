@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Shared", "src/Metin2
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Infrastructure.Networking", "src/Metin2.Infrastructure.Networking/Metin2.Infrastructure.Networking.csproj", "{73486E0D-E0FC-4776-9403-A67C260EFB0B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.HandshakeProbe", "tools/Metin2.HandshakeProbe/Metin2.HandshakeProbe.csproj", "{5FA770B4-9B67-4C1D-9421-FE8B7CA59D91}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Architecture.Tests", "tests/Metin2.Architecture.Tests/Metin2.Architecture.Tests.csproj", "{18A88274-ED43-4FD7-91D2-B7BB150932A6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Shared.Tests", "tests/Metin2.Shared.Tests/Metin2.Shared.Tests.csproj", "{1AE57526-1831-4E82-B29E-04886242BE37}"
@@ -21,6 +23,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Protocol.Tests", "tests/Metin2.Protocol.Tests/Metin2.Protocol.Tests.csproj", "{1FE69F44-E489-44E2-9466-D73C6D514C2E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Infrastructure.Networking.Tests", "tests/Metin2.Infrastructure.Networking.Tests/Metin2.Infrastructure.Networking.Tests.csproj", "{7A1D8647-6F73-4D5C-9FD5-26ECF5732D4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.Server.Tests", "tests/Metin2.Server.Tests/Metin2.Server.Tests.csproj", "{9E9D3A67-2FB6-4DFB-98D3-571064A0D1B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metin2.HandshakeProbe.Tests", "tests/Metin2.HandshakeProbe.Tests/Metin2.HandshakeProbe.Tests.csproj", "{6C540C12-DB46-47E1-9C4C-84E12E9DFB2E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,6 +54,10 @@ Global
 		{73486E0D-E0FC-4776-9403-A67C260EFB0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{73486E0D-E0FC-4776-9403-A67C260EFB0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{73486E0D-E0FC-4776-9403-A67C260EFB0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FA770B4-9B67-4C1D-9421-FE8B7CA59D91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FA770B4-9B67-4C1D-9421-FE8B7CA59D91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FA770B4-9B67-4C1D-9421-FE8B7CA59D91}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FA770B4-9B67-4C1D-9421-FE8B7CA59D91}.Release|Any CPU.Build.0 = Release|Any CPU
 		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18A88274-ED43-4FD7-91D2-B7BB150932A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -68,5 +78,13 @@ Global
 		{7A1D8647-6F73-4D5C-9FD5-26ECF5732D4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7A1D8647-6F73-4D5C-9FD5-26ECF5732D4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7A1D8647-6F73-4D5C-9FD5-26ECF5732D4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E9D3A67-2FB6-4DFB-98D3-571064A0D1B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E9D3A67-2FB6-4DFB-98D3-571064A0D1B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E9D3A67-2FB6-4DFB-98D3-571064A0D1B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E9D3A67-2FB6-4DFB-98D3-571064A0D1B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C540C12-DB46-47E1-9C4C-84E12E9DFB2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C540C12-DB46-47E1-9C4C-84E12E9DFB2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C540C12-DB46-47E1-9C4C-84E12E9DFB2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C540C12-DB46-47E1-9C4C-84E12E9DFB2E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,10 @@
+<Project Sdk="MSTest.Sdk/4.3.3">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../tools/Metin2.HandshakeProbe/Metin2.HandshakeProbe.csproj" />
+    <ProjectReference Include="../../src/Metin2.Infrastructure.Networking/Metin2.Infrastructure.Networking.csproj" />
+  </ItemGroup>
+</Project>
