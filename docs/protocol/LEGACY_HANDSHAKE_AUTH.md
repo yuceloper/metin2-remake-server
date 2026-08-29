@@ -273,15 +273,33 @@ After a valid token, the inspected handler sets encryption/session data, marks t
 
 ## Sequence behavior
 
-Reference metadata marks individual packet types as sequenced. When enabled:
+The earlier `yuceloper/new-metin` reference is useful only for confirming the existence and framing position of the trailing sequence byte. Its serializer writes a default zero byte and its reader consumes the byte without validation, so it is **not** sufficient evidence for the real legacy progression algorithm.
 
-- serialization writes the normal header,
-- writes payload fields,
-- appends one trailing sequence byte,
-- total frame size includes that byte,
-- deserialization reads header and payload separately, then consumes sequence.
+Classic server/client source establishes the actual progression model:
 
-The actual sequence progression and validation algorithm remains unresolved and belongs to the legacy framing/session implementation.
+- the connection sequence index begins at `0`,
+- a sequenced packet carries one trailing byte after its payload,
+- the server expects `sequenceTable[currentIndex]`,
+- a mismatch rejects/closes the connection and does **not** advance the index,
+- a match advances the index by one,
+- the index wraps to `0` at the sequence-table length,
+- the client mirrors the same table/index progression when sending a sequence byte,
+- clearing/resetting the client connection resets the sequence index to `0`.
+
+Classic 40250-era public source uses a table size of `32768` bytes (`SEQUENCE_MAX_NUM` / `SEQUENCE_TABLE_SIZE`). The public table commonly associated with that source begins:
+
+```text
+AF CA 8A CF 48 A7 54 C7 ...
+```
+
+However, public client/source variants exist with different sequence tables. Therefore the remake does **not** treat that 32768-byte table as universal Metin2 protocol data. The progression algorithm is now understood, but the exact table remains a **client-build compatibility profile** that must be selected and verified against the stock client we target.
+
+Architecture consequence:
+
+- `LegacySequenceProfile` owns an explicit immutable table supplied by the selected compatibility profile.
+- `LegacySequenceState` is connection-local and starts at index `0`.
+- the receive path validates a configured sequence before typed dispatch.
+- no default sequence profile is configured until the target client build/table is verified.
 
 ## Current canonical reference-confirmed packets
 
@@ -301,8 +319,8 @@ Before declaring login compatibility complete:
 - cross-check headers/layouts and phase ordering against original Metin2 source,
 - capture real client handshake/auth/game-login traffic where practical,
 - verify client-build differences,
+- select and verify the exact sequence table/profile for the target stock client,
 - verify exact key byte order against original source/traffic,
-- determine sequence progression/validation,
 - verify encryption activation boundary around TokenLogin.
 
 ## Architecture consequence
