@@ -8,17 +8,22 @@ public sealed class TcpGameListener : IAsyncDisposable
     private readonly Socket _listener;
     private readonly IPEndPoint _bindEndPoint;
     private readonly int _backlog;
+    private readonly Action<Exception>? _connectionErrorHandler;
     private readonly HashSet<Task> _connections = [];
     private bool _started;
     private bool _disposed;
 
-    public TcpGameListener(IPEndPoint bindEndPoint, int backlog = 512)
+    public TcpGameListener(
+        IPEndPoint bindEndPoint,
+        int backlog = 512,
+        Action<Exception>? connectionErrorHandler = null)
     {
         ArgumentNullException.ThrowIfNull(bindEndPoint);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(backlog);
 
         _bindEndPoint = bindEndPoint;
         _backlog = backlog;
+        _connectionErrorHandler = connectionErrorHandler;
         _listener = new Socket(bindEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
     }
 
@@ -55,6 +60,10 @@ public sealed class TcpGameListener : IAsyncDisposable
                 {
                     break;
                 }
+                catch (ObjectDisposedException) when (_disposed)
+                {
+                    break;
+                }
 
                 Task connectionTask = HandleAcceptedAsync(accepted, handler, cancellationToken);
                 _connections.Add(connectionTask);
@@ -83,19 +92,29 @@ public sealed class TcpGameListener : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    private static async Task HandleAcceptedAsync(
+    private async Task HandleAcceptedAsync(
         Socket socket,
         IAcceptedSocketHandler handler,
         CancellationToken cancellationToken)
     {
         using (socket)
         {
-            await handler.HandleAsync(socket, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await handler.HandleAsync(socket, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception)
+            {
+                _connectionErrorHandler?.Invoke(exception);
+            }
         }
     }
 
     private void PruneCompletedConnections()
     {
-        _connections.RemoveWhere(static task => task.IsCompletedSuccessfully);
+        _connections.RemoveWhere(static task => task.IsCompleted);
     }
 }
