@@ -12,7 +12,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyHandshakeIntegrationTests
 {
     [TestMethod]
-    public async Task Initial_server_handshake_and_matching_client_echo_transition_session()
+    public async Task Initial_phase_handshake_and_matching_echo_transition_session_and_announce_auth()
     {
         (Socket peer, Socket accepted) = await CreateConnectedPairAsync();
         using (peer)
@@ -35,15 +35,23 @@ public sealed class LegacyHandshakeIntegrationTests
 
             await target.StartAsync();
 
-            byte[] initial = new byte[13];
+            byte[] initial = new byte[15];
             await ReceiveExactlyAsync(peer, initial);
 
-            Assert.AreEqual((byte)0xFF, initial[0]);
-            Assert.AreEqual(0x11223344u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(1, 4)));
-            Assert.AreEqual(1_000u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(5, 4)));
-            Assert.AreEqual(0u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(9, 4)));
+            Assert.AreEqual((byte)0xFD, initial[0]);
+            Assert.AreEqual((byte)0x01, initial[1]);
+            Assert.AreEqual((byte)0xFF, initial[2]);
+            Assert.AreEqual(0x11223344u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(3, 4)));
+            Assert.AreEqual(1_000u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(7, 4)));
+            Assert.AreEqual(0u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(11, 4)));
 
-            await SendAllAsync(peer, initial);
+            await SendAllAsync(peer, initial.AsMemory(2, 13));
+
+            byte[] authPhase = new byte[2];
+            await ReceiveExactlyAsync(peer, authPhase);
+            Assert.AreEqual((byte)0xFD, authPhase[0]);
+            Assert.AreEqual((byte)0x0A, authPhase[1]);
+
             peer.Shutdown(SocketShutdown.Send);
 
             LegacyReceiveLoopResult receiveResult = await receive;
