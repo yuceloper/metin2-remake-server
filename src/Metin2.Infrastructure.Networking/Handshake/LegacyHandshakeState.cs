@@ -1,4 +1,4 @@
-using Metin2.Protocol.Generated.Packets;
+using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Handshake;
 
@@ -12,7 +12,7 @@ public enum LegacyHandshakeDecision : byte
 
 public readonly record struct LegacyHandshakeResult(
     LegacyHandshakeDecision Decision,
-    Handshake? Response = null);
+    HandshakePacket? Response = null);
 
 public sealed class LegacyHandshakeState
 {
@@ -30,7 +30,7 @@ public sealed class LegacyHandshakeState
 
     public long LastHandshakeTime { get; private set; }
 
-    public Handshake Start(long serverTime)
+    public HandshakePacket Start(long serverTime)
     {
         if (!IsActive)
         {
@@ -38,10 +38,10 @@ public sealed class LegacyHandshakeState
         }
 
         LastHandshakeTime = serverTime;
-        return new Handshake(Token, unchecked((uint)serverTime), 0);
+        return new HandshakePacket(Token, unchecked((uint)serverTime), 0);
     }
 
-    public LegacyHandshakeResult Handle(in Handshake packet, long serverTime)
+    public LegacyHandshakeResult Handle(in HandshakePacket packet, long serverTime)
     {
         if (!IsActive)
         {
@@ -68,7 +68,7 @@ public sealed class LegacyHandshakeState
         }
 
         LastHandshakeTime = serverTime;
-        var response = new Handshake(
+        var response = new HandshakePacket(
             Token,
             unchecked((uint)serverTime),
             unchecked((uint)delta));
