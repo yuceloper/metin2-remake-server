@@ -5,6 +5,7 @@ using Metin2.Infrastructure.Networking.Connections;
 using Metin2.Infrastructure.Networking.Receive;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using HandshakePacketModel = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
@@ -34,7 +35,7 @@ public sealed class SocketConnectionTests
 
             Assert.AreEqual(LegacyReceiveLoopCompletion.Completed, result.Completion);
             Assert.AreEqual(1L, result.FramesProcessed);
-            Assert.AreEqual(nameof(Handshake), target.LastPacketName);
+            Assert.AreEqual(nameof(HandshakePacketModel), target.LastPacketName);
             Assert.AreEqual(11u, target.HandshakePacket.HandshakeValue);
             Assert.AreEqual(22u, target.HandshakePacket.Time);
             Assert.AreEqual(33u, target.HandshakePacket.Delta);
@@ -130,11 +131,11 @@ public sealed class SocketConnectionTests
     private sealed class RecordingTarget : IPacketDispatchTarget
     {
         public string? LastPacketName { get; private set; }
-        public Handshake HandshakePacket { get; private set; }
+        public HandshakePacketModel HandshakePacket { get; private set; }
 
-        public ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken)
+        public ValueTask HandleAsync(HandshakePacketModel packet, CancellationToken cancellationToken)
         {
-            LastPacketName = nameof(Handshake);
+            LastPacketName = nameof(HandshakePacketModel);
             HandshakePacket = packet;
             return ValueTask.CompletedTask;
         }
