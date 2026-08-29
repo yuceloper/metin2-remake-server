@@ -30,10 +30,10 @@ jobs:
         run: dotnet build Metin2.sln --configuration Debug --no-restore
 
       - name: Test Debug
-        run: dotnet test Metin2.sln --configuration Debug --no-build
+        run: dotnet test --solution Metin2.sln --configuration Debug --no-build
 
       - name: Build Release
         run: dotnet build Metin2.sln --configuration Release --no-restore
 
       - name: Test Release
-        run: dotnet test Metin2.sln --configuration Release --no-build
+        run: dotnet test --solution Metin2.sln --configuration Release --no-build
