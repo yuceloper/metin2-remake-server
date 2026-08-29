@@ -100,7 +100,7 @@ public sealed class SocketConnectionTests
         listener.Listen(1);
 
         var peer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        Task<Socket> acceptTask = listener.AcceptAsync().AsTask();
+        Task<Socket> acceptTask = listener.AcceptAsync();
         await peer.ConnectAsync(listener.LocalEndPoint!);
         Socket accepted = await acceptTask;
         return (peer, accepted);
