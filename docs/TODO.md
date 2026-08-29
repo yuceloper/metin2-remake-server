@@ -92,6 +92,7 @@
 - [x] Send pipeline
 - [x] Legacy one-byte header framing profile
 - [x] Optional trailing sequence-byte framing
+- [x] Profile-driven legacy sequence validation core
 - [x] Frame decoder/encoder
 - [x] Packet decoder/encoder
 - [x] Graceful disconnect
@@ -125,6 +126,8 @@
 - [x] Document game TokenLogin reference layout and Login phase
 - [x] Document legacy fixed-string behavior
 - [x] Document legacy header/payload/sequence framing behavior
+- [x] Document classic sequence progression/validation algorithm
+- [ ] Select and verify target client sequence table/profile
 - [x] Add reference-confirmed Handshake YAML
 - [x] Add reference-confirmed Phase YAML
 - [x] Add reference-confirmed LoginRequest YAML
@@ -141,7 +144,6 @@
 - [ ] Extract skill packets
 - [ ] Verify struct packing and endianness against original source
 - [ ] Compare handshake/login with real client packet captures
-- [ ] Resolve sequence progression/validation semantics
 - [ ] Verify encryption activation boundary around TokenLogin
 
 ## Phase 8 — Handshake
