@@ -90,9 +90,9 @@
 - [ ] GameSession
 - [ ] System.IO.Pipelines receive pipeline
 - [ ] Send pipeline
-- [ ] Legacy one-byte header framing profile
-- [ ] Optional trailing sequence-byte framing
-- [ ] Frame decoder/encoder
+- [x] Legacy one-byte header framing profile
+- [x] Optional trailing sequence-byte framing
+- [x] Frame decoder/encoder
 - [ ] Packet decoder/encoder
 - [ ] Graceful disconnect
 - [ ] Cancellation handling
