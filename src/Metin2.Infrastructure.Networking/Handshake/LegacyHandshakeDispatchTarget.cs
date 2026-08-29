@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using Metin2.Protocol.Legacy;
 using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Handshake;
@@ -20,6 +21,7 @@ public sealed class LegacyHandshakeRejectedException : Exception
 public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
 {
     private const int HandshakeFrameSize = 13;
+    private const int PhaseFrameSize = 2;
 
     private readonly GameSession _session;
     private readonly PipeWriter _output;
@@ -60,6 +62,8 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
 
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
+        await WritePhaseAsync(LegacyPhaseCode.Handshake, cancellationToken).ConfigureAwait(false);
+
         HandshakePacket packet = _state.Start(_timeProvider.GetMilliseconds());
         await WriteHandshakeAsync(packet, cancellationToken).ConfigureAwait(false);
     }
@@ -72,6 +76,7 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         {
             case LegacyHandshakeDecision.Completed:
                 _session.TransitionTo(_nextPhase);
+                await WritePhaseAsync(MapWirePhase(_nextPhase), cancellationToken).ConfigureAwait(false);
                 if (_onCompleted is not null)
                 {
                     await _onCompleted(_session, cancellationToken).ConfigureAwait(false);
@@ -107,12 +112,42 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         }
 
         _output.Advance(written);
+        await FlushOutputAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask WritePhaseAsync(LegacyPhaseCode phaseCode, CancellationToken cancellationToken)
+    {
+        var packet = new Phase((byte)phaseCode);
+        Memory<byte> memory = _output.GetMemory(PhaseFrameSize);
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        if (status != PacketFrameWriteStatus.Done || written != PhaseFrameSize)
+        {
+            throw new InvalidOperationException($"Phase frame could not be written: {status} ({written} bytes).");
+        }
+
+        _output.Advance(written);
+        await FlushOutputAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask FlushOutputAsync(CancellationToken cancellationToken)
+    {
         FlushResult flush = await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
         if (flush.IsCanceled)
         {
             throw new OperationCanceledException(cancellationToken);
         }
     }
+
+    private static LegacyPhaseCode MapWirePhase(PacketPhase phase) =>
+        phase switch
+        {
+            PacketPhase.Login => LegacyPhaseCode.Login,
+            PacketPhase.Auth => LegacyPhaseCode.Auth,
+            PacketPhase.Select => LegacyPhaseCode.Select,
+            PacketPhase.Loading => LegacyPhaseCode.Loading,
+            PacketPhase.Game => LegacyPhaseCode.Game,
+            _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "Unsupported post-handshake phase.")
+        };
 
     private static ValueTask Unsupported<TPacket>(TPacket packet) =>
         ValueTask.FromException(new InvalidOperationException(
