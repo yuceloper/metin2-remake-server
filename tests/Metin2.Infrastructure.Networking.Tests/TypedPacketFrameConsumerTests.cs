@@ -4,6 +4,7 @@ using Metin2.Infrastructure.Networking.Receive;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using HandshakePacketModel = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
@@ -33,7 +34,7 @@ public sealed class TypedPacketFrameConsumerTests
 
         Assert.AreEqual(LegacyReceiveLoopCompletion.Completed, result.Completion);
         Assert.AreEqual(1L, result.FramesProcessed);
-        Assert.AreEqual(nameof(Handshake), target.LastPacketName);
+        Assert.AreEqual(nameof(HandshakePacketModel), target.LastPacketName);
         Assert.AreEqual(1u, target.HandshakePacket.HandshakeValue);
         Assert.AreEqual(2u, target.HandshakePacket.Time);
         Assert.AreEqual(3u, target.HandshakePacket.Delta);
@@ -115,11 +116,11 @@ public sealed class TypedPacketFrameConsumerTests
 
         public TaskCompletionSource<bool> Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string? LastPacketName { get; private set; }
-        public Handshake HandshakePacket { get; private set; }
+        public HandshakePacketModel HandshakePacket { get; private set; }
 
-        public ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken)
+        public ValueTask HandleAsync(HandshakePacketModel packet, CancellationToken cancellationToken)
         {
-            LastPacketName = nameof(Handshake);
+            LastPacketName = nameof(HandshakePacketModel);
             HandshakePacket = packet;
             Invoked.TrySetResult(true);
 
