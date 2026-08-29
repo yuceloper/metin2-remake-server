@@ -5,6 +5,7 @@ using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
 using Metin2.Protocol.Legacy;
+using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
@@ -92,7 +93,7 @@ public sealed class LegacySequenceValidationTests
         var session = new GameSession(PacketPhase.Handshake, new LegacySequenceState(profile));
         var consumer = new RecordingConsumer();
         var pipe = new Pipe();
-        var packet = new Handshake(1, 2, 3);
+        var packet = new HandshakePacket(1, 2, 3);
         var frame = new byte[13];
         PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, frame, out int written);
         Assert.AreEqual(PacketFrameWriteStatus.Done, status);
