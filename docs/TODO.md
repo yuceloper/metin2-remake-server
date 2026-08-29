@@ -87,18 +87,18 @@
 - [ ] TCP listener
 - [ ] Socket lifecycle
 - [ ] Connection abstraction
-- [ ] GameSession
-- [ ] System.IO.Pipelines receive pipeline
+- [x] GameSession
+- [x] System.IO.Pipelines receive pipeline
 - [ ] Send pipeline
 - [x] Legacy one-byte header framing profile
 - [x] Optional trailing sequence-byte framing
 - [x] Frame decoder/encoder
 - [ ] Packet decoder/encoder
 - [ ] Graceful disconnect
-- [ ] Cancellation handling
+- [x] Cancellation handling in receive loop
 - [ ] Connection timeout
 - [ ] Maximum packet size
-- [ ] Invalid packet handling
+- [x] Invalid packet handling in receive loop
 - [ ] Base rate limiting
 - [ ] ArrayPool/buffer pooling
 - [ ] Network benchmarks
