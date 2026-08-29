@@ -4,26 +4,16 @@ namespace Metin2.Modules.Auth.Application;
 
 public readonly record struct AuthLoginRequest(string Username, string Password);
 
-public enum CredentialVerificationFailure : byte
-{
-    InvalidCredentials = 1,
-    LoginDenied = 2
-}
-
 public readonly record struct CredentialVerificationResult(
     bool IsSuccess,
     AccountId AccountId,
-    string Username,
-    CredentialVerificationFailure? Failure)
+    string Username)
 {
     public static CredentialVerificationResult Success(AccountId accountId, string username) =>
-        new(true, accountId, username, null);
+        new(true, accountId, username);
 
     public static CredentialVerificationResult InvalidCredentials() =>
-        new(false, default, string.Empty, CredentialVerificationFailure.InvalidCredentials);
-
-    public static CredentialVerificationResult LoginDenied() =>
-        new(false, default, string.Empty, CredentialVerificationFailure.LoginDenied);
+        new(false, default, string.Empty);
 }
 
 public interface IAccountCredentialVerifier
@@ -44,8 +34,7 @@ public interface IAuthTokenIssuer
 
 public enum AuthLoginFailure : byte
 {
-    InvalidCredentials = 1,
-    LoginDenied = 2
+    InvalidCredentials = 1
 }
 
 public readonly record struct AuthLoginResult(
@@ -55,7 +44,8 @@ public readonly record struct AuthLoginResult(
 {
     public static AuthLoginResult Success(uint token) => new(true, token, null);
 
-    public static AuthLoginResult Failed(AuthLoginFailure failure) => new(false, 0, failure);
+    public static AuthLoginResult InvalidCredentials() =>
+        new(false, 0, AuthLoginFailure.InvalidCredentials);
 }
 
 public interface IAuthLoginService
@@ -94,13 +84,7 @@ public sealed class AuthLoginService : IAuthLoginService
 
         if (!verification.IsSuccess)
         {
-            AuthLoginFailure failure = verification.Failure switch
-            {
-                CredentialVerificationFailure.LoginDenied => AuthLoginFailure.LoginDenied,
-                _ => AuthLoginFailure.InvalidCredentials
-            };
-
-            return AuthLoginResult.Failed(failure);
+            return AuthLoginResult.InvalidCredentials();
         }
 
         uint token = await _tokenIssuer
