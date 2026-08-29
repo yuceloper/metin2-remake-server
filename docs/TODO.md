@@ -93,7 +93,7 @@
 - [x] Legacy one-byte header framing profile
 - [x] Optional trailing sequence-byte framing
 - [x] Frame decoder/encoder
-- [ ] Packet decoder/encoder
+- [x] Packet decoder/encoder
 - [x] Graceful disconnect
 - [x] Cancellation handling in receive loop
 - [ ] Connection timeout
