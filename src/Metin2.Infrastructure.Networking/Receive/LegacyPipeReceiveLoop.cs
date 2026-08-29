@@ -11,13 +11,16 @@ public enum LegacyReceiveLoopCompletion : byte
     Completed = 0,
     TruncatedFrame = 1,
     ProtocolViolation = 2,
-    UnsupportedPacketShape = 3
+    UnsupportedPacketShape = 3,
+    DispatchFailure = 4,
+    ConsumerFailure = 5
 }
 
 public readonly record struct LegacyReceiveLoopResult(
     LegacyReceiveLoopCompletion Completion,
     long FramesProcessed,
-    byte? OffendingHeader = null);
+    byte? OffendingHeader = null,
+    Exception? Exception = null);
 
 public static class LegacyPipeReceiveLoop
 {
@@ -51,12 +54,37 @@ public static class LegacyPipeReceiveLoop
 
                     if (decodeStatus == LegacyFrameDecodeStatus.Done)
                     {
-                        await consumer.ConsumeAsync(
-                            session,
-                            frame.Registration,
-                            frame.Payload,
-                            frame.Sequence,
-                            cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await consumer.ConsumeAsync(
+                                session,
+                                frame.Registration,
+                                frame.Payload,
+                                frame.Sequence,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (PacketDispatchException exception)
+                        {
+                            reader.AdvanceTo(buffer.Start, buffer.End);
+                            return new LegacyReceiveLoopResult(
+                                LegacyReceiveLoopCompletion.DispatchFailure,
+                                framesProcessed,
+                                TryPeekHeader(buffer),
+                                exception);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception exception)
+                        {
+                            reader.AdvanceTo(buffer.Start, buffer.End);
+                            return new LegacyReceiveLoopResult(
+                                LegacyReceiveLoopCompletion.ConsumerFailure,
+                                framesProcessed,
+                                TryPeekHeader(buffer),
+                                exception);
+                        }
 
                         buffer = buffer.Slice(frame.FrameSize);
                         framesProcessed++;
