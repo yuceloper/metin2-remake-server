@@ -11,4 +11,8 @@ Use numbered records such as:
 
 Each ADR should capture context, decision, consequences and alternatives considered.
 
+Current records:
+
+- [ADR 0002 — Generated typed packet dispatch](0002-generated-typed-packet-dispatch.md)
+
 The repository documentation remains the canonical project memory.
