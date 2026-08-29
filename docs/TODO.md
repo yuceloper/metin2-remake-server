@@ -105,7 +105,7 @@
 
 ## Phase 6 — Generated Packet Dispatcher
 
-- [ ] Packet handler interface
+- [x] Packet handler interface
 - [x] Generated opcode lookup
 - [ ] Handler registration
 - [x] Unknown opcode handling
