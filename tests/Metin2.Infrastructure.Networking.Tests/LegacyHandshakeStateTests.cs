@@ -1,5 +1,5 @@
 using Metin2.Infrastructure.Networking.Handshake;
-using Metin2.Protocol.Generated.Packets;
+using HandshakePacketModel = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
@@ -11,7 +11,7 @@ public sealed class LegacyHandshakeStateTests
     {
         var state = new LegacyHandshakeState(0x12345678);
         _ = state.Start(1_000);
-        var packet = new Handshake(0x12345678, 1_000, 0);
+        var packet = new HandshakePacketModel(0x12345678, 1_000, 0);
 
         LegacyHandshakeResult result = state.Handle(in packet, 1_025);
 
@@ -25,7 +25,7 @@ public sealed class LegacyHandshakeStateTests
     {
         var state = new LegacyHandshakeState(10);
         _ = state.Start(1_000);
-        var packet = new Handshake(11, 1_000, 0);
+        var packet = new HandshakePacketModel(11, 1_000, 0);
 
         LegacyHandshakeResult result = state.Handle(in packet, 1_010);
 
@@ -38,7 +38,7 @@ public sealed class LegacyHandshakeStateTests
     {
         var state = new LegacyHandshakeState(7);
         _ = state.Start(1_000);
-        var packet = new Handshake(7, 800, 0);
+        var packet = new HandshakePacketModel(7, 800, 0);
 
         LegacyHandshakeResult result = state.Handle(in packet, 1_200);
 
@@ -55,7 +55,7 @@ public sealed class LegacyHandshakeStateTests
     {
         var state = new LegacyHandshakeState(9);
         _ = state.Start(1_000);
-        var packet = new Handshake(9, 1_500, 0);
+        var packet = new HandshakePacketModel(9, 1_500, 0);
 
         LegacyHandshakeResult result = state.Handle(in packet, 1_100);
 
