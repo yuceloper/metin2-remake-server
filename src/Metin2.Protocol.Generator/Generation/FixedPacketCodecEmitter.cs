@@ -182,10 +182,10 @@ internal static class FixedPacketCodecEmitter
         source.AppendLine($"        global::System.ReadOnlySpan<{PacketModelEmitter.MapWireOrDomainType(element.Type, element.DomainType)}> {spanName} = packet.{propertyName}.Span;");
         source.AppendLine($"        for (int i = 0; i < {spanName}.Length; i++)");
         source.AppendLine("        {");
-        string value = string.IsNullOrWhiteSpace(element.DomainType)
+        string elementValue = string.IsNullOrWhiteSpace(element.DomainType)
             ? $"{spanName}[i]"
             : $"{spanName}[i].Value";
-        source.AppendLine($"            if (!writer.{elementWriteMethod}({value})) return false;");
+        source.AppendLine($"            if (!writer.{elementWriteMethod}({elementValue})) return false;");
         source.AppendLine("        }");
     }
 
