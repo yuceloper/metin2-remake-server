@@ -58,9 +58,25 @@ public sealed class PacketGenerator : IIncrementalGenerator
                 }
             }
 
+            IReadOnlyList<ValidationFailure> protocolFailures = ProtocolDefinitionValidator.Validate(validDocuments);
+            foreach (ValidationFailure failure in protocolFailures)
+            {
+                sourceContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticCatalog.ValidationError,
+                    Location.None,
+                    failure.Code,
+                    failure.Message));
+            }
+
+            if (protocolFailures.Count != 0)
+            {
+                return;
+            }
+
             EmitProtocolMetadata(sourceContext, validDocuments);
             EmitPacketModels(sourceContext, validDocuments);
             EmitFixedPacketCodecs(sourceContext, validDocuments);
+            EmitPacketRegistry(sourceContext, validDocuments);
         });
     }
 
@@ -146,6 +162,13 @@ public sealed class PacketGenerator : IIncrementalGenerator
             string source = FixedPacketCodecEmitter.Emit(packet);
             context.AddSource($"Codecs.{packet.Name}.g.cs", SourceText.From(source, Encoding.UTF8));
         }
+    }
+
+    private static void EmitPacketRegistry(SourceProductionContext context, IReadOnlyList<PacketDocument> documents)
+    {
+        PacketDefinition[] packets = documents.SelectMany(static document => document.Packets).ToArray();
+        string source = PacketRegistryEmitter.Emit(packets);
+        context.AddSource("PacketRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
     }
 
     private sealed class PacketFileResult
