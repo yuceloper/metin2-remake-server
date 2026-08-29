@@ -12,7 +12,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyHandshakeListenerIntegrationTests
 {
     [TestMethod]
-    public async Task Listener_automatically_starts_handshake_and_transitions_session()
+    public async Task Listener_sends_handshake_phase_then_handshake_and_announces_auth_on_completion()
     {
         using var cancellation = new CancellationTokenSource();
         var completed = new TaskCompletionSource<PacketPhase>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -33,13 +33,19 @@ public sealed class LegacyHandshakeListenerIntegrationTests
         using var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         await client.ConnectAsync(endpoint);
 
-        byte[] initial = await ReceiveExactAsync(client, 13);
-        Assert.AreEqual((byte)0xFF, initial[0]);
-        Assert.AreEqual(0x11223344u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(1, 4)));
-        Assert.AreEqual(1_000u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(5, 4)));
-        Assert.AreEqual(0u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(9, 4)));
+        byte[] initial = await ReceiveExactAsync(client, 15);
+        Assert.AreEqual((byte)0xFD, initial[0]);
+        Assert.AreEqual((byte)0x01, initial[1]);
+        Assert.AreEqual((byte)0xFF, initial[2]);
+        Assert.AreEqual(0x11223344u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(3, 4)));
+        Assert.AreEqual(1_000u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(7, 4)));
+        Assert.AreEqual(0u, BinaryPrimitives.ReadUInt32LittleEndian(initial.AsSpan(11, 4)));
 
-        await SendAllAsync(client, initial);
+        await SendAllAsync(client, initial.AsMemory(2, 13));
+
+        byte[] authPhase = await ReceiveExactAsync(client, 2);
+        Assert.AreEqual((byte)0xFD, authPhase[0]);
+        Assert.AreEqual((byte)0x0A, authPhase[1]);
 
         PacketPhase phase = await completed.Task;
         Assert.AreEqual(PacketPhase.Auth, phase);
@@ -71,9 +77,9 @@ public sealed class LegacyHandshakeListenerIntegrationTests
         using (var first = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
         {
             await first.ConnectAsync(endpoint);
-            byte[] frame = await ReceiveExactAsync(first, 13);
-            BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(1, 4), 0xDEADBEEF);
-            await SendAllAsync(first, frame);
+            byte[] initial = await ReceiveExactAsync(first, 15);
+            BinaryPrimitives.WriteUInt32LittleEndian(initial.AsSpan(3, 4), 0xDEADBEEF);
+            await SendAllAsync(first, initial.AsMemory(2, 13));
 
             byte[] one = new byte[1];
             int received = await first.ReceiveAsync(one);
@@ -83,8 +89,12 @@ public sealed class LegacyHandshakeListenerIntegrationTests
         using (var second = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
         {
             await second.ConnectAsync(endpoint);
-            byte[] frame = await ReceiveExactAsync(second, 13);
-            await SendAllAsync(second, frame);
+            byte[] initial = await ReceiveExactAsync(second, 15);
+            await SendAllAsync(second, initial.AsMemory(2, 13));
+
+            byte[] authPhase = await ReceiveExactAsync(second, 2);
+            Assert.AreEqual((byte)0xFD, authPhase[0]);
+            Assert.AreEqual((byte)0x0A, authPhase[1]);
 
             PacketPhase phase = await completed.Task;
             Assert.AreEqual(PacketPhase.Auth, phase);

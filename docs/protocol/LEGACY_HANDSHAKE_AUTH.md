@@ -19,7 +19,7 @@ The reference reader/serializer establishes this legacy frame shape:
 [ header:u8 ][ payload:N ][ optional sequence:u8 ]
 ```
 
-Generated packet codecs own **payload only**. The future legacy framing/session layer owns the header, optional sequence byte, full-frame availability and sequence progression/validation.
+Generated packet codecs own **payload only**. The legacy framing/session layer owns the header, optional sequence byte, full-frame availability and sequence progression/validation.
 
 For a fixed legacy packet:
 
@@ -56,9 +56,64 @@ Canonical representation:
 type: fixed_string
 length: 31
 encoding: ascii
-termination: null
-trim: null
+termination: "null"
+trim: "null"
 ```
+
+## Phase — 0xFD
+
+Evidence:
+
+```text
+src/Core/Core/Packets/GCPhase.cs
+src/CorePluginAPI/Game/Types/EPhases.cs
+src/Core/Extensions/ConnectionExtensions.cs
+src/Executables/Auth/AuthServer.cs
+src/Executables/Game/GameServer.cs
+```
+
+```text
+Header:    0xFD
+Direction: server -> client
+Payload:   phase:u8
+Sequence:  false
+Frame:     2 bytes
+```
+
+Reference wire phase values:
+
+| Value | Meaning |
+| ---: | --- |
+| 1 | Handshake |
+| 2 | Login |
+| 3 | Select |
+| 4 | Loading |
+| 5 | Game |
+| 10 | Auth |
+
+These values are legacy wire values and are intentionally independent of the generator's internal `PacketPhase` dispatcher metadata enum.
+
+`ConnectionExtensions.SetPhase` first updates the connection phase and then sends `GCPhase`. `Connection.StartHandshake()` calls `SetPhase(Handshake)` before it sends the first Handshake packet. Therefore the reference-confirmed initial wire order is:
+
+```text
+FD 01
+FF <handshake payload>
+```
+
+After handshake completion:
+
+- AuthServer calls `SetPhase(Auth)`, producing `FD 0A`.
+- GameServer calls `SetPhase(Login)`, producing `FD 02`.
+
+A handshake time-resynchronization retry does **not** change phase; it emits another `0xFF` Handshake only.
+
+Canonical definition:
+
+```text
+protocol/server/legacy-phase.packet.yml
+```
+
+The remake models these values explicitly as `LegacyPhaseCode` rather than relying on internal enum ordinal values.
 
 ## Handshake — 0xFF
 
@@ -67,6 +122,7 @@ Evidence:
 ```text
 src/Core/Core/Packets/GCHandshake.cs
 src/Core/Core/Networking/Connection.cs
+src/Core/Extensions/ConnectionExtensions.cs
 ```
 
 ```text
@@ -89,51 +145,18 @@ Observed lifecycle:
 
 1. TCP connection begins in handshake state.
 2. Server creates a random 32-bit handshake token.
-3. Server sends `Handshake(token, serverTime, 0)`.
-4. Client responds with the same token plus time/delta.
-5. Wrong token closes the connection.
-6. Server computes `serverTime - (clientTime + clientDelta)`.
-7. A difference in the reference acceptance range `0..50 ms` completes the handshake; otherwise another delta/handshake round occurs.
+3. Server announces Handshake phase with `FD 01`.
+4. Server sends `Handshake(token, serverTime, 0)` as `0xFF`.
+5. Client responds with the same token plus time/delta.
+6. Wrong token closes the connection.
+7. Server computes `serverTime - (clientTime + clientDelta)`.
+8. A difference in the reference acceptance range `0..50 ms` completes the handshake.
+9. Otherwise another `0xFF` Handshake is emitted with the reference retry delta; phase remains Handshake.
+10. On completion Auth announces `FD 0A`, while game announces `FD 02`.
+
+Reference `serverTime` is monotonic elapsed milliseconds from a server-started `Stopwatch`, not wall-clock or Unix time.
 
 The behavior is evidence, not code to copy mechanically.
-
-## Phase — 0xFD
-
-Evidence:
-
-```text
-src/Core/Core/Packets/GCPhase.cs
-src/CorePluginAPI/Game/Types/EPhases.cs
-src/Core/Extensions/ConnectionExtensions.cs
-```
-
-```text
-Header:    0xFD
-Direction: server -> client
-Payload:   phase:u8
-Sequence:  false
-```
-
-Reference wire phase values:
-
-| Value | Meaning |
-| ---: | --- |
-| 1 | Handshake |
-| 2 | Login |
-| 3 | Select |
-| 4 | Loading |
-| 5 | Game |
-| 10 | Auth |
-
-These values are legacy wire values and are intentionally independent of the generator's `PacketPhase` dispatcher metadata enum.
-
-After auth handshake completion the reference server changes the client to Auth, giving the expected reference frame `FD 0A` pending final traffic/original-source verification.
-
-Canonical definition:
-
-```text
-protocol/server/legacy-phase.packet.yml
-```
 
 ## Auth LoginRequest — 0x6F
 
@@ -226,7 +249,7 @@ src/Executables/Game/GameConnection.cs
 src/Executables/Game/GameServer.cs
 ```
 
-The game connection runs the shared handshake first. After handshake completion, `GameServer`'s new-connection listener sets the connection to the reference `Login` phase. TokenLogin is therefore modeled with dispatcher phase `login`.
+The game connection runs the shared handshake first. After handshake completion, `GameServer` sets the connection to legacy wire Login phase (`FD 02`). TokenLogin is therefore modeled with dispatcher phase `login`.
 
 ```text
 Header:     0x6D
@@ -258,7 +281,7 @@ Reference metadata marks individual packet types as sequenced. When enabled:
 - total frame size includes that byte,
 - deserialization reads header and payload separately, then consumes sequence.
 
-The actual sequence progression and validation algorithm remains unresolved and belongs to the future legacy framing/session implementation.
+The actual sequence progression and validation algorithm remains unresolved and belongs to the legacy framing/session implementation.
 
 ## Current canonical reference-confirmed packets
 
@@ -275,7 +298,7 @@ protocol/client/legacy-token-login.packet.yml
 
 Before declaring login compatibility complete:
 
-- cross-check headers/layouts against original Metin2 source,
+- cross-check headers/layouts and phase ordering against original Metin2 source,
 - capture real client handshake/auth/game-login traffic where practical,
 - verify client-build differences,
 - verify exact key byte order against original source/traffic,
