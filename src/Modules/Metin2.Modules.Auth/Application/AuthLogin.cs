@@ -75,8 +75,10 @@ public sealed class AuthLoginService : IAuthLoginService
         AuthLoginRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Username);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Password);
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return AuthLoginResult.InvalidCredentials();
+        }
 
         CredentialVerificationResult verification = await _credentialVerifier
             .VerifyAsync(request.Username, request.Password, cancellationToken)
