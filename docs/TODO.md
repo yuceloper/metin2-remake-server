@@ -85,16 +85,16 @@
 ## Phase 5 — Networking Foundation
 
 - [ ] TCP listener
-- [ ] Socket lifecycle
-- [ ] Connection abstraction
+- [x] Socket lifecycle
+- [x] Connection abstraction
 - [x] GameSession
 - [x] System.IO.Pipelines receive pipeline
-- [ ] Send pipeline
+- [x] Send pipeline
 - [x] Legacy one-byte header framing profile
 - [x] Optional trailing sequence-byte framing
 - [x] Frame decoder/encoder
 - [ ] Packet decoder/encoder
-- [ ] Graceful disconnect
+- [x] Graceful disconnect
 - [x] Cancellation handling in receive loop
 - [ ] Connection timeout
 - [ ] Maximum packet size
