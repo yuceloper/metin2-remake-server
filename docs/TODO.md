@@ -150,6 +150,7 @@
 - [ ] Compatibility-verified legacy handshake packet definition
 - [x] Handshake handler
 - [x] Connection state machine
+- [x] Live accepted-socket handshake composition
 - [ ] Protocol version handling
 - [x] Reject invalid handshake
 - [ ] Test client
