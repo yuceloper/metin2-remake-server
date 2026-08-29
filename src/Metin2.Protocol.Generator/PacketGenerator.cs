@@ -78,6 +78,7 @@ public sealed class PacketGenerator : IIncrementalGenerator
             EmitFixedPacketCodecs(sourceContext, validDocuments);
             EmitPacketRegistry(sourceContext, validDocuments);
             EmitPacketDispatcher(sourceContext, validDocuments);
+            EmitPacketFrameWriter(sourceContext, validDocuments);
         });
     }
 
@@ -177,6 +178,13 @@ public sealed class PacketGenerator : IIncrementalGenerator
         PacketDefinition[] packets = documents.SelectMany(static document => document.Packets).ToArray();
         string source = PacketDispatcherEmitter.Emit(packets);
         context.AddSource("PacketDispatcher.g.cs", SourceText.From(source, Encoding.UTF8));
+    }
+
+    private static void EmitPacketFrameWriter(SourceProductionContext context, IReadOnlyList<PacketDocument> documents)
+    {
+        PacketDefinition[] packets = documents.SelectMany(static document => document.Packets).ToArray();
+        string source = PacketFrameWriterEmitter.Emit(packets);
+        context.AddSource("PacketFrameWriter.g.cs", SourceText.From(source, Encoding.UTF8));
     }
 
     private sealed class PacketFileResult
