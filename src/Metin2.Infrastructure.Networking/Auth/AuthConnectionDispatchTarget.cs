@@ -1,6 +1,7 @@
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Auth;
 
@@ -19,7 +20,7 @@ public sealed class AuthConnectionDispatchTarget : IPacketDispatchTarget
         _auth = auth;
     }
 
-    public ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken) =>
+    public ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken) =>
         _handshake.HandleAsync(packet, cancellationToken);
 
     public ValueTask HandleAsync(LoginRequest packet, CancellationToken cancellationToken) =>
