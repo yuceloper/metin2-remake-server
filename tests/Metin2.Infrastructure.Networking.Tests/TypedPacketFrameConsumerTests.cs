@@ -44,7 +44,7 @@ public sealed class TypedPacketFrameConsumerTests
     {
         var pipe = new Pipe();
         var session = new GameSession(PacketPhase.Handshake);
-        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var target = new RecordingTarget(gate.Task);
         var consumer = new TypedPacketFrameConsumer(target);
 
@@ -60,7 +60,7 @@ public sealed class TypedPacketFrameConsumerTests
         await target.Invoked.Task;
         Assert.IsFalse(receive.IsCompleted);
 
-        gate.SetResult();
+        gate.SetResult(true);
         LegacyReceiveLoopResult result = await receive;
 
         Assert.AreEqual(LegacyReceiveLoopCompletion.Completed, result.Completion);
@@ -89,7 +89,7 @@ public sealed class TypedPacketFrameConsumerTests
         Assert.AreEqual(LegacyReceiveLoopCompletion.ConsumerFailure, result.Completion);
         Assert.AreEqual(0L, result.FramesProcessed);
         Assert.AreEqual((byte)0xFF, result.OffendingHeader);
-        Assert.IsInstanceOfType<InvalidOperationException>(result.Exception);
+        Assert.IsTrue(result.Exception is InvalidOperationException);
     }
 
     private static byte[] CreateHandshakeFrame(uint handshake, uint time, uint delta)
@@ -113,7 +113,7 @@ public sealed class TypedPacketFrameConsumerTests
             _exception = exception;
         }
 
-        public TaskCompletionSource Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string? LastPacketName { get; private set; }
         public Handshake HandshakePacket { get; private set; }
 
@@ -121,7 +121,7 @@ public sealed class TypedPacketFrameConsumerTests
         {
             LastPacketName = nameof(Handshake);
             HandshakePacket = packet;
-            Invoked.TrySetResult();
+            Invoked.TrySetResult(true);
 
             if (_exception is not null)
             {
