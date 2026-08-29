@@ -111,7 +111,7 @@
 - [x] Unknown opcode handling
 - [x] Session-state validation
 - [x] Direction validation
-- [ ] Handler exception isolation
+- [x] Handler exception isolation
 - [ ] Correlated logging
 - [ ] Packet metrics
 
