@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 using Metin2.Modules.Auth.Application;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Auth;
 
@@ -39,7 +40,7 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
         await WriteLoginFailedAsync(failed, cancellationToken).ConfigureAwait(false);
     }
 
-    public ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken) => Unsupported(packet);
+    public ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(LoginFailed packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(LoginSuccess packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(Phase packet, CancellationToken cancellationToken) => Unsupported(packet);
