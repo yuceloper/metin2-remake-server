@@ -148,10 +148,10 @@
 
 - [x] Reference-confirmed legacy handshake packet definition
 - [ ] Compatibility-verified legacy handshake packet definition
-- [ ] Handshake handler
-- [ ] Connection state machine
+- [x] Handshake handler
+- [x] Connection state machine
 - [ ] Protocol version handling
-- [ ] Reject invalid handshake
+- [x] Reject invalid handshake
 - [ ] Test client
 - [ ] Verify real Metin2 client connection
 
