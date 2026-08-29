@@ -85,14 +85,19 @@ public static class HandshakeProbeApp
             $"Expected initial Handshake phase 0x01 but received 0x{initialPhase[1]:X2}.");
         Console.WriteLine("Initial phase: Handshake (FD 01)");
 
+        byte[] frame = await ReceiveExactAsync(socket, 13, linkedCancellation.Token).ConfigureAwait(false);
+        uint? expectedToken = null;
+
         for (int attempt = 1; attempt <= options.MaxRetries; attempt++)
         {
-            byte[] frame = await ReceiveExactAsync(socket, 13, linkedCancellation.Token).ConfigureAwait(false);
             Require(frame[0] == 0xFF, $"Expected Handshake header 0xFF but received 0x{frame[0]:X2}.");
 
             var reader = new PacketReader(frame.AsSpan(1));
             Require(HandshakeCodec.TryRead(ref reader, out HandshakePacket handshake), "Handshake payload could not be decoded.");
             Require(reader.Remaining == 0, "Handshake payload contained unexpected trailing bytes.");
+
+            expectedToken ??= handshake.HandshakeValue;
+            Require(handshake.HandshakeValue == expectedToken.Value, "Handshake token changed unexpectedly during retry flow.");
 
             Console.WriteLine(
                 $"Handshake #{attempt}: token=0x{handshake.HandshakeValue:X8}, time={handshake.Time}, delta={handshake.Delta}");
@@ -103,20 +108,9 @@ public static class HandshakeProbeApp
             if (header[0] == 0xFF)
             {
                 byte[] retryPayload = await ReceiveExactAsync(socket, 12, linkedCancellation.Token).ConfigureAwait(false);
-                var retryFrame = new byte[13];
-                retryFrame[0] = 0xFF;
-                retryPayload.CopyTo(retryFrame, 1);
-
-                var retryReader = new PacketReader(retryFrame.AsSpan(1));
-                Require(HandshakeCodec.TryRead(ref retryReader, out HandshakePacket retryPacket),
-                    "Retry Handshake payload could not be decoded.");
-                Require(retryPacket.HandshakeValue == handshake.HandshakeValue,
-                    "Retry Handshake token changed unexpectedly.");
-
-                Console.WriteLine(
-                    $"Handshake retry requested: token=0x{retryPacket.HandshakeValue:X8}, time={retryPacket.Time}, delta={retryPacket.Delta}");
-
-                await SendAllAsync(socket, retryFrame, linkedCancellation.Token).ConfigureAwait(false);
+                frame = new byte[13];
+                frame[0] = 0xFF;
+                retryPayload.CopyTo(frame, 1);
                 continue;
             }
 
@@ -133,7 +127,7 @@ public static class HandshakeProbeApp
             return;
         }
 
-        throw new InvalidOperationException($"Handshake did not complete within {options.MaxRetries} retries.");
+        throw new InvalidOperationException($"Handshake did not complete within {options.MaxRetries} attempts.");
     }
 
     public static string Usage =>
