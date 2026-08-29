@@ -35,12 +35,33 @@ public sealed class AuthLoginServiceTests
         Assert.AreEqual(0, issuer.Calls);
     }
 
+    [TestMethod]
+    public async Task Blank_credentials_are_rejected_without_calling_verifier()
+    {
+        var verifier = new StubVerifier(CredentialVerificationResult.Success(new AccountId(42), "player"));
+        var issuer = new StubIssuer(0x11223344);
+        var service = new AuthLoginService(verifier, issuer);
+
+        AuthLoginResult result = await service.LoginAsync(new AuthLoginRequest(string.Empty, string.Empty));
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.AreEqual(AuthLoginFailure.InvalidCredentials, result.Failure);
+        Assert.AreEqual(0, verifier.Calls);
+        Assert.AreEqual(0, issuer.Calls);
+    }
+
     private sealed class StubVerifier(CredentialVerificationResult result) : IAccountCredentialVerifier
     {
+        public int Calls { get; private set; }
+
         public ValueTask<CredentialVerificationResult> VerifyAsync(
             string username,
             string password,
-            CancellationToken cancellationToken = default) => ValueTask.FromResult(result);
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return ValueTask.FromResult(result);
+        }
     }
 
     private sealed class StubIssuer(uint token) : IAuthTokenIssuer
