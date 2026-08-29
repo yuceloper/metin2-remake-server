@@ -6,7 +6,11 @@
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="../../protocol/**/*.packet.yml" />
-    <AdditionalFiles Include="../../protocol/**/*.packet.yaml" />
+    <AdditionalFiles Include="../../protocol/common/**/*.packet.yml" />
+    <AdditionalFiles Include="../../protocol/common/**/*.packet.yaml" />
+    <AdditionalFiles Include="../../protocol/client/**/*.packet.yml" />
+    <AdditionalFiles Include="../../protocol/client/**/*.packet.yaml" />
+    <AdditionalFiles Include="../../protocol/server/**/*.packet.yml" />
+    <AdditionalFiles Include="../../protocol/server/**/*.packet.yaml" />
   </ItemGroup>
 </Project>
