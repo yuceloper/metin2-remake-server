@@ -31,12 +31,12 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
         if (result.IsSuccess)
         {
             var response = new LoginSuccess(result.Token, 1);
-            await WriteAsync(response, LoginSuccessFrameSize, cancellationToken).ConfigureAwait(false);
+            await WriteLoginSuccessAsync(response, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var failed = new LoginFailed(0, WrongPasswordStatus);
-        await WriteAsync(failed, LoginFailedFrameSize, cancellationToken).ConfigureAwait(false);
+        await WriteLoginFailedAsync(failed, cancellationToken).ConfigureAwait(false);
     }
 
     public ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken) => Unsupported(packet);
@@ -45,23 +45,38 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
     public ValueTask HandleAsync(Phase packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken) => Unsupported(packet);
 
-    private async ValueTask WriteAsync<TPacket>(
-        TPacket packet,
-        int expectedSize,
-        CancellationToken cancellationToken)
+    private async ValueTask WriteLoginSuccessAsync(LoginSuccess packet, CancellationToken cancellationToken)
     {
-        Memory<byte> memory = _output.GetMemory(expectedSize);
+        Memory<byte> memory = _output.GetMemory(LoginSuccessFrameSize);
         PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
-        if (status != PacketFrameWriteStatus.Done || written != expectedSize)
-        {
-            throw new InvalidOperationException($"Auth response frame could not be written: {status} ({written} bytes).");
-        }
-
+        EnsureWritten(status, written, LoginSuccessFrameSize);
         _output.Advance(written);
+        await FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask WriteLoginFailedAsync(LoginFailed packet, CancellationToken cancellationToken)
+    {
+        Memory<byte> memory = _output.GetMemory(LoginFailedFrameSize);
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        EnsureWritten(status, written, LoginFailedFrameSize);
+        _output.Advance(written);
+        await FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask FlushAsync(CancellationToken cancellationToken)
+    {
         FlushResult flush = await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
         if (flush.IsCanceled)
         {
             throw new OperationCanceledException(cancellationToken);
+        }
+    }
+
+    private static void EnsureWritten(PacketFrameWriteStatus status, int written, int expectedSize)
+    {
+        if (status != PacketFrameWriteStatus.Done || written != expectedSize)
+        {
+            throw new InvalidOperationException($"Auth response frame could not be written: {status} ({written} bytes).");
         }
     }
 
