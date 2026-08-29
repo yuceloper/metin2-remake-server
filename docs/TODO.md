@@ -14,8 +14,8 @@
 - [x] Add analyzers
 - [x] Create `src`, `tests`, `protocol`, `docs/adr` structure
 - [x] Add CI pipeline
-- [ ] Verify Debug/Release builds
-- [ ] Verify Ubuntu build
+- [x] Verify Debug/Release builds
+- [x] Verify Ubuntu build
 - [x] Add Docker build
 
 ## Phase 1 — Shared Kernel
