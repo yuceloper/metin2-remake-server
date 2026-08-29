@@ -35,6 +35,54 @@ The original Metin2 server source is used only to understand protocol layouts, o
 
 Original Metin2 Client -> TCP -> Handshake -> Login -> Character List -> Character Select -> Enter World -> Map1 -> Movement
 
+## Handshake Development Checkpoint
+
+The current server can run a reference-backed legacy handshake listener in either Auth or Game mode. Ports are deliberately explicit; the examples below use local development ports and do **not** claim canonical Metin2 port numbers.
+
+Run an Auth handshake listener:
+
+```bash
+dotnet run --project src/Metin2.Server -- serve --mode auth --bind 127.0.0.1 --port 15000
+```
+
+Verify it with the independent protocol probe:
+
+```bash
+dotnet run --project tools/Metin2.HandshakeProbe -- --host 127.0.0.1 --port 15000 --expect auth
+```
+
+Run a Game handshake listener:
+
+```bash
+dotnet run --project src/Metin2.Server -- serve --mode game --bind 127.0.0.1 --port 16000
+```
+
+Verify the Game/Login transition:
+
+```bash
+dotnet run --project tools/Metin2.HandshakeProbe -- --host 127.0.0.1 --port 16000 --expect login
+```
+
+The probe validates the current reference-confirmed wire sequence:
+
+```text
+FD 01
+FF <handshake payload>
+...
+FD 0A   # Auth
+```
+
+or:
+
+```text
+FD 01
+FF <handshake payload>
+...
+FD 02   # Game/Login
+```
+
+This is a development compatibility probe, not proof that a stock Metin2 client is compatible yet.
+
 ## Repository Structure
 
 ```text
@@ -43,8 +91,10 @@ src/
   Metin2.Protocol/
   Metin2.Protocol.Generator/
   Metin2.Shared/
-  Modules/
-  Infrastructure/
+  Metin2.Infrastructure.Networking/
+
+tools/
+  Metin2.HandshakeProbe/
 
 tests/
 protocol/
