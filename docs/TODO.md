@@ -151,6 +151,7 @@
 - [x] Handshake handler
 - [x] Connection state machine
 - [x] Live accepted-socket handshake composition
+- [x] Legacy phase announcements (`FD 01`, `FD 0A`, `FD 02`)
 - [ ] Protocol version handling
 - [x] Reject invalid handshake
 - [ ] Test client
