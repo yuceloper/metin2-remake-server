@@ -56,7 +56,7 @@
 - [x] Generate opcode constants
 - [ ] Complete serializers for every schema field kind
 - [ ] Complete deserializers for every schema field kind
-- [ ] Generate packet registry
+- [x] Generate packet registry
 - [x] Direction validation
 - [x] Fixed payload-size calculation for scalar/string/primitive-array packets
 - [x] Strong ID serialization for fixed scalar codecs
@@ -106,11 +106,11 @@
 ## Phase 6 — Generated Packet Dispatcher
 
 - [ ] Packet handler interface
-- [ ] Generated opcode lookup
+- [x] Generated opcode lookup
 - [ ] Handler registration
-- [ ] Unknown opcode handling
-- [ ] Session-state validation
-- [ ] Direction validation
+- [x] Unknown opcode handling
+- [x] Session-state validation
+- [x] Direction validation
 - [ ] Handler exception isolation
 - [ ] Correlated logging
 - [ ] Packet metrics
