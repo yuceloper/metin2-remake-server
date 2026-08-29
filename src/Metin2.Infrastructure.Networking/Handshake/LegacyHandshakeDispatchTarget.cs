@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
 
 namespace Metin2.Infrastructure.Networking.Handshake;
 
@@ -56,11 +57,11 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
 
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
-        Handshake packet = _state.Start(_timeProvider.GetMilliseconds());
+        HandshakePacket packet = _state.Start(_timeProvider.GetMilliseconds());
         await WriteHandshakeAsync(packet, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask HandleAsync(Handshake packet, CancellationToken cancellationToken)
+    public async ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken)
     {
         LegacyHandshakeResult result = _state.Handle(in packet, _timeProvider.GetMilliseconds());
 
@@ -89,7 +90,7 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
     public ValueTask HandleAsync(Phase packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken) => Unsupported(packet);
 
-    private async ValueTask WriteHandshakeAsync(Handshake packet, CancellationToken cancellationToken)
+    private async ValueTask WriteHandshakeAsync(HandshakePacket packet, CancellationToken cancellationToken)
     {
         Memory<byte> memory = _output.GetMemory(HandshakeFrameSize);
         PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
