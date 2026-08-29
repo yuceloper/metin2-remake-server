@@ -3,6 +3,7 @@ using System.IO.Pipelines;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Framing;
 using Metin2.Protocol.Generated;
+using Metin2.Protocol.Legacy;
 
 namespace Metin2.Infrastructure.Networking.Receive;
 
@@ -13,7 +14,8 @@ public enum LegacyReceiveLoopCompletion : byte
     ProtocolViolation = 2,
     UnsupportedPacketShape = 3,
     DispatchFailure = 4,
-    ConsumerFailure = 5
+    ConsumerFailure = 5,
+    SequenceMismatch = 6
 }
 
 public readonly record struct LegacyReceiveLoopResult(
@@ -54,6 +56,19 @@ public static class LegacyPipeReceiveLoop
 
                     if (decodeStatus == LegacyFrameDecodeStatus.Done)
                     {
+                        LegacySequenceState? sequenceState = session.SequenceState;
+                        if (frame.Registration.HasSequence && sequenceState is not null)
+                        {
+                            if (!frame.Sequence.HasValue || !sequenceState.TryAccept(frame.Sequence.Value))
+                            {
+                                reader.AdvanceTo(buffer.Start, buffer.End);
+                                return new LegacyReceiveLoopResult(
+                                    LegacyReceiveLoopCompletion.SequenceMismatch,
+                                    framesProcessed,
+                                    TryPeekHeader(buffer));
+                            }
+                        }
+
                         try
                         {
                             await consumer.ConsumeAsync(
