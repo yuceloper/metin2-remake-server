@@ -7,6 +7,12 @@ Packet YAML files are the protocol single source of truth.
 ```yaml
 schema: 1
 protocol: legacy-metin2
+types:
+  - name: ExampleSummary
+    size: fixed
+    fields:
+      - name: id
+        type: u32le
 packets:
   - name: ExamplePacket
     opcode: 0x01
@@ -17,6 +23,8 @@ packets:
     since: 1
     fields: []
 ```
+
+`types:` is optional. It declares reusable fixed-layout wire structures that can be referenced by packet fields or fixed-array elements.
 
 ## Packet metadata
 
@@ -97,6 +105,8 @@ This rule is legacy-profile specific.
 
 Generated packet models contain packet data only. Protocol metadata is emitted into a separate generated `<PacketName>Metadata` class so payload fields such as `phase`, `opcode` or `direction` cannot collide with metadata members.
 
+Reusable fixed wire types are generated under `Metin2.Protocol.Generated.Types` as readonly record structs with compile-time codecs and `PayloadSize` constants.
+
 ## Primitive wire types
 
 Endianness is explicit for multi-byte primitives:
@@ -142,9 +152,44 @@ Required metadata:
 - `termination`: `"null"` or `none`
 - `trim`: `"null"` or `none` when specified
 
-The current legacy fixed-string codec path implements ASCII + null termination, which matches the inspected login protocol reference. Other declared schema combinations remain future codec work.
+The current legacy fixed-string codec path implements ASCII + null termination, which matches the inspected login and character-selection protocol references. Other declared schema combinations remain future codec work.
 
 A null-terminated fixed field reserves one byte for its terminator. A 31-byte field therefore accepts at most 30 ASCII bytes in the current writer.
+
+## Reusable fixed composite types
+
+A real protocol requirement (`Characters/LoginSuccess4`) introduced the first reusable packed structure, equivalent to classic `TSimplePlayerInformation`.
+
+```yaml
+types:
+  - name: CharacterSummary
+    size: fixed
+    fields:
+      - name: id
+        type: u32le
+        domainType: CharacterId
+      - name: name
+        type: fixed_string
+        length: 25
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: level
+        type: u8
+```
+
+Schema v1 deliberately keeps composites narrow:
+
+- only `size: fixed` reusable types are supported,
+- composite fields must have compile-time-known width,
+- current composite members are scalar primitives/domain IDs and supported fixed strings,
+- packet fields may reference a declared composite directly,
+- fixed arrays may reference a declared composite as their element type,
+- recursive/nested composite declarations are rejected,
+- variable nested fields are not supported,
+- no runtime reflection or opaque-byte fallback is introduced.
+
+The generated codec computes composite and containing packet sizes transitively at generation time.
 
 ## Variable strings
 
@@ -189,35 +234,63 @@ Fixed primitive arrays:
     type: u32le
 ```
 
-The current fixed codec path supports scalar primitive elements and generates `ReadOnlyMemory<T>` packet fields.
-
-Count-based arrays remain future work:
+Fixed composite arrays:
 
 ```yaml
-- name: characters
+- name: character_list
   type: array
-  lengthFrom: character_count
-  maxLength: 4
+  length: 4
   element:
     type: CharacterSummary
 ```
 
-Complex/nested structure declarations will be introduced only when a real protocol requirement justifies them.
+Fixed-string arrays carry string metadata on the element because each array item is an independent fixed-width field:
+
+```yaml
+- name: guild_names
+  type: array
+  length: 4
+  element:
+    type: fixed_string
+    length: 13
+    encoding: ascii
+    termination: "null"
+    trim: "null"
+```
+
+The current fixed codec path supports primitive, supported fixed-string and declared fixed-composite elements. Generated packet fields use `ReadOnlyMemory<T>`.
+
+Count-based arrays remain future work:
+
+```yaml
+- name: entries
+  type: array
+  lengthFrom: entry_count
+  maxLength: 128
+  element:
+    type: u32le
+```
 
 ## Field ordering
 
 YAML field order is wire order and must be preserved exactly.
+
+Classic character-selection evidence uses `#pragma pack(1)`; generated codecs therefore express the declared byte sequence directly and do not insert C#/.NET structure padding.
 
 ## Validation rules
 
 Build diagnostics cover or are expected to cover:
 
 - duplicate packet names/opcodes
+- duplicate/reserved reusable wire-type names
 - unsupported direction/phase/wire type
+- unknown composite references
+- unsupported nested/recursive composite shapes
 - invalid generated C# identifiers or collisions
 - invalid fixed-string length/encoding/termination policy
 - fixed arrays without positive length/element metadata
 - unsupported fixed-array element types
+- invalid fixed-string array element metadata
 - variable fields without bounds
 - invalid `lengthFrom`
 - incompatible `domainType`/wire primitive
@@ -228,6 +301,8 @@ Build diagnostics cover or are expected to cover:
 
 Variable-size definitions require explicit upper bounds. Generated readers reject malformed/truncated payloads before unsafe advancement/allocation. Generated fixed writers prevalidate capacity and fixed-field shape before writing packet data.
 
+Generated dispatch targets provide a rejecting default implementation for packet types a target does not explicitly handle. Adding a new packet to the protocol SSOT therefore does not require unrelated Auth/Handshake targets to add meaningless stubs, while an actually dispatched unsupported packet still fails explicitly.
+
 ## What does not belong in YAML
 
 Do not encode gameplay rules, database mappings, permissions, service names, login policy or quest logic in protocol YAML. YAML describes the wire contract only.
@@ -236,8 +311,9 @@ Do not encode gameplay rules, database mappings, permissions, service names, log
 
 Reference-derived values must carry evidence/confidence and must not import legacy implementation architecture.
 
-Current research note:
+Current research notes:
 
 ```text
 docs/protocol/LEGACY_HANDSHAKE_AUTH.md
+docs/protocol/LEGACY_CHARACTER_SELECTION.md
 ```
