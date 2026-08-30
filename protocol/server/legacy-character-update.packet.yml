@@ -1,5 +1,6 @@
 # Evidence status: reference-confirmed
-# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterUpdate.cs
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterUpdate.cs and PlayerEntity.cs
+# The packet is used during initial Loading bootstrap and later during Game equipment/state updates.
 # Final compatibility must still be verified against the exact target client/capture.
 schema: 1
 protocol: legacy-metin2
@@ -7,7 +8,7 @@ packets:
   - name: CharacterUpdate
     opcode: 0x13
     direction: server_to_client
-    phase: loading
+    phase: any
     size: fixed
     sequence: false
     since: 1
