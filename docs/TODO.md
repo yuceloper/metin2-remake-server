@@ -127,6 +127,7 @@
 - [x] Document legacy fixed-string behavior
 - [x] Document legacy header/payload/sequence framing behavior
 - [x] Document classic sequence progression/validation algorithm
+- [x] Document classic TokenLogin plaintext/security activation boundary
 - [ ] Select and verify target client sequence table/profile
 - [x] Add reference-confirmed Handshake YAML
 - [x] Add reference-confirmed Phase YAML
@@ -144,7 +145,7 @@
 - [ ] Extract skill packets
 - [ ] Verify struct packing and endianness against original source
 - [ ] Compare handshake/login with real client packet captures
-- [ ] Verify encryption activation boundary around TokenLogin
+- [ ] Verify target-client encryption mode and first post-TokenLogin encrypted traffic
 
 ## Phase 8 — Handshake
 
@@ -162,6 +163,7 @@
 ## Phase 9 — Authentication
 
 - [x] Auth module application core
+- [x] Game login application core
 - [ ] Account model
 - [x] Password hashing strategy
 - [x] Login request wire handler
@@ -172,12 +174,17 @@
 - [x] One-time Auth -> Game token handoff
 - [x] Reference-confirmed login request/result packet definitions
 - [x] Same-socket Handshake -> Auth login composition
-- [ ] Session authentication state
+- [x] Game TokenLogin wire handler
+- [x] Same-socket Handshake -> Game Login composition
+- [x] Session authentication state
+- [x] Preserve 4-DWORD client security key after TokenLogin
+- [x] PostgreSQL -> Game login consume-once/replay integration coverage
 - [ ] Duplicate-login policy
 - [ ] Account-status/client-status mapping
 - [ ] Brute-force/rate limiting policy
 - [x] Auth integration tests with deterministic sequence profile
 - [ ] Configure verified production client sequence profile
+- [ ] Enable post-TokenLogin encrypted transport
 
 ## Phase 10 — PostgreSQL
 
