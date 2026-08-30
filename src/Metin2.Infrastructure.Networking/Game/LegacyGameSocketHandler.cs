@@ -4,6 +4,7 @@ using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Networking.Receive;
 using Metin2.Infrastructure.Networking.Sessions;
+using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Legacy;
@@ -16,22 +17,30 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly IHandshakeTokenSource _handshakeTokenSource;
     private readonly LegacySequenceProfile _sequenceProfile;
     private readonly IGameLoginService _loginService;
+    private readonly CharacterSelectionService _selectionService;
+    private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource handshakeTokenSource,
         LegacySequenceProfile sequenceProfile,
-        IGameLoginService loginService)
+        IGameLoginService loginService,
+        CharacterSelectionService selectionService,
+        ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
         ArgumentNullException.ThrowIfNull(sequenceProfile);
         ArgumentNullException.ThrowIfNull(loginService);
+        ArgumentNullException.ThrowIfNull(selectionService);
+        ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
 
         _timeProvider = timeProvider;
         _handshakeTokenSource = handshakeTokenSource;
         _sequenceProfile = sequenceProfile;
         _loginService = loginService;
+        _selectionService = selectionService;
+        _selectionWireContextProvider = selectionWireContextProvider;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
@@ -49,7 +58,14 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             _timeProvider,
             _handshakeTokenSource,
             PacketPhase.Login);
-        var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService);
+        var selectionPublisher = new LegacyCharacterSelectionPublisher(
+            connection.Output,
+            _selectionService,
+            _selectionWireContextProvider);
+        var loginTarget = new GameTokenLoginDispatchTarget(
+            session,
+            _loginService,
+            selectionPublisher);
         var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget);
         var consumer = new TypedPacketFrameConsumer(target);
 
