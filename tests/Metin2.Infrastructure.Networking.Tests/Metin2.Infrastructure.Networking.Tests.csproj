@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Metin2.Infrastructure.Networking/Metin2.Infrastructure.Networking.csproj" />
     <ProjectReference Include="../../src/Metin2.Infrastructure.Persistence.Postgres/Metin2.Infrastructure.Persistence.Postgres.csproj" />
+    <ProjectReference Include="../../src/Modules/Metin2.Modules.World/Metin2.Modules.World.csproj" />
   </ItemGroup>
 </Project>
