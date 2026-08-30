@@ -43,6 +43,31 @@ public sealed class CharacterSelectionServiceTests
             await service.GetAsync(new AccountId(1)));
     }
 
+    [TestMethod]
+    public async Task Character_select_returns_only_repository_owned_character()
+    {
+        var service = new CharacterSelectService(new StubCharacterSelectionRepository(new CharacterId(101)));
+
+        CharacterSelectResult result = await service.SelectAsync(new AccountId(7), 0);
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual(new CharacterId(101), result.CharacterId);
+    }
+
+    [TestMethod]
+    public async Task Character_select_rejects_missing_and_out_of_range_slots()
+    {
+        var repository = new CountingCharacterSelectionRepository(null);
+        var service = new CharacterSelectService(repository);
+
+        CharacterSelectResult missing = await service.SelectAsync(new AccountId(7), 1);
+        CharacterSelectResult invalid = await service.SelectAsync(new AccountId(7), 4);
+
+        Assert.IsFalse(missing.IsSuccess);
+        Assert.IsFalse(invalid.IsSuccess);
+        Assert.AreEqual(1, repository.CallCount);
+    }
+
     private static CharacterListEntry CreateEntry(byte slot, uint id, string name) =>
         new(
             slot,
@@ -78,5 +103,28 @@ public sealed class CharacterSelectionServiceTests
             AccountId accountId,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(empire);
+    }
+
+    private sealed class StubCharacterSelectionRepository(CharacterId? characterId) : ICharacterSelectionRepository
+    {
+        public ValueTask<CharacterId?> FindOwnedCharacterIdAsync(
+            AccountId accountId,
+            byte slot,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(characterId);
+    }
+
+    private sealed class CountingCharacterSelectionRepository(CharacterId? characterId) : ICharacterSelectionRepository
+    {
+        public int CallCount { get; private set; }
+
+        public ValueTask<CharacterId?> FindOwnedCharacterIdAsync(
+            AccountId accountId,
+            byte slot,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return ValueTask.FromResult(characterId);
+        }
     }
 }
