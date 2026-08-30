@@ -125,7 +125,7 @@ internal static class PacketDefinitionValidator
     private static void ValidateFields(
         string ownerName,
         IReadOnlyList<FieldDefinition> fields,
-        IReadOnlySet<string> compositeTypes,
+        HashSet<string> compositeTypes,
         bool allowArrays,
         bool allowCompositeFields,
         ICollection<ValidationFailure> failures)
@@ -200,7 +200,7 @@ internal static class PacketDefinitionValidator
     private static void ValidateArray(
         string ownerName,
         FieldDefinition field,
-        IReadOnlySet<string> compositeTypes,
+        HashSet<string> compositeTypes,
         ICollection<ValidationFailure> failures)
     {
         if (field.LengthFrom is null && (!field.Length.HasValue || field.Length.Value <= 0))
