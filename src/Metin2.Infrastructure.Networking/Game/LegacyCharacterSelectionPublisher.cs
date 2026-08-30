@@ -81,9 +81,27 @@ public sealed class LegacyCharacterSelectionPublisher(
         Span<byte> destination = memory.Span;
         int offset = 0;
 
-        offset += WriteSequenced(in empire, context.EmpireSequence, destination[offset..], EmpireFrameSize);
-        offset += Write(in phase, destination[offset..], PhaseFrameSize);
-        offset += Write(in characters, destination[offset..], CharactersFrameSize);
+        PacketFrameWriteStatus empireStatus = PacketFrameWriter.TryWrite(
+            in empire,
+            context.EmpireSequence,
+            destination[offset..],
+            out int empireWritten);
+        EnsureWritten(nameof(Empire), empireStatus, empireWritten, EmpireFrameSize);
+        offset += empireWritten;
+
+        PacketFrameWriteStatus phaseStatus = PacketFrameWriter.TryWrite(
+            in phase,
+            destination[offset..],
+            out int phaseWritten);
+        EnsureWritten(nameof(Phase), phaseStatus, phaseWritten, PhaseFrameSize);
+        offset += phaseWritten;
+
+        PacketFrameWriteStatus charactersStatus = PacketFrameWriter.TryWrite(
+            in characters,
+            destination[offset..],
+            out int charactersWritten);
+        EnsureWritten(nameof(Characters), charactersStatus, charactersWritten, CharactersFrameSize);
+        offset += charactersWritten;
 
         if (offset != TotalFrameSize)
         {
@@ -100,29 +118,16 @@ public sealed class LegacyCharacterSelectionPublisher(
         session.TransitionTo(PacketPhase.Select);
     }
 
-    private static int Write<TPacket>(in TPacket packet, Span<byte> destination, int expectedSize)
-        where TPacket : struct
+    private static void EnsureWritten(
+        string packetName,
+        PacketFrameWriteStatus status,
+        int written,
+        int expectedSize)
     {
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, destination, out int written);
         if (status != PacketFrameWriteStatus.Done || written != expectedSize)
         {
             throw new InvalidOperationException(
-                $"Selection packet '{typeof(TPacket).Name}' could not be written: {status} ({written} bytes)." );
+                $"Selection packet '{packetName}' could not be written: {status} ({written} bytes)." );
         }
-
-        return written;
-    }
-
-    private static int WriteSequenced<TPacket>(in TPacket packet, byte sequence, Span<byte> destination, int expectedSize)
-        where TPacket : struct
-    {
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, sequence, destination, out int written);
-        if (status != PacketFrameWriteStatus.Done || written != expectedSize)
-        {
-            throw new InvalidOperationException(
-                $"Sequenced selection packet '{typeof(TPacket).Name}' could not be written: {status} ({written} bytes)." );
-        }
-
-        return written;
     }
 }
