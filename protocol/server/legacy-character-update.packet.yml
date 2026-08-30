@@ -1,0 +1,41 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterUpdate.cs
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: CharacterUpdate
+    opcode: 0x13
+    direction: server_to_client
+    phase: loading
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: vid
+        type: u32le
+      - name: parts
+        type: array
+        length: 4
+        element:
+          type: u16le
+      - name: move_speed
+        type: u8
+      - name: attack_speed
+        type: u8
+      - name: state
+        type: u8
+      - name: affects
+        type: array
+        length: 2
+        element:
+          type: u32le
+      - name: guild_id
+        type: u32le
+        domainType: GuildId
+      - name: rank_points
+        type: i16le
+      - name: pk_mode
+        type: u8
+      - name: mount_vnum
+        type: u32le
