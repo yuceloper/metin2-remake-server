@@ -7,6 +7,12 @@ internal static class FixedPacketCodecEmitter
 {
     private const string GeneratedNamespace = "Metin2.Protocol.Generated.Packets";
 
+    // Compatibility filter used by generated dispatcher/frame-writer emitters.
+    // Documents reaching emission have already passed validation, so an otherwise
+    // unknown fixed type here is a validated reusable composite wire type.
+    public static bool CanEmit(PacketDefinition packet) =>
+        packet.Size == "fixed" && packet.Fields.All(CanEmitFieldWithoutTypeMap);
+
     public static bool CanEmit(PacketDefinition packet, IReadOnlyDictionary<string, WireTypeDefinition> wireTypes) =>
         packet.Size == "fixed" && packet.Fields.All(field => CanEmitField(field, wireTypes));
 
@@ -27,6 +33,22 @@ internal static class FixedPacketCodecEmitter
         EmitWriter(source, packet, wireTypes);
         source.AppendLine("}");
         return source.ToString();
+    }
+
+    private static bool CanEmitFieldWithoutTypeMap(FieldDefinition field)
+    {
+        if (FixedWireTypeEmitter.TryGetScalarWireInfo(field.Type, out _, out _, out _)) return true;
+        if (IsSupportedFixedString(field.Length, field.Encoding, field.Termination)) return true;
+
+        if (field.Type == "array" && field.Length is > 0 && field.Element is not null)
+        {
+            ElementDefinition element = field.Element;
+            if (FixedWireTypeEmitter.TryGetScalarWireInfo(element.Type, out _, out _, out _)) return true;
+            if (IsSupportedFixedString(element.Length, element.Encoding, element.Termination)) return true;
+            return element.Type is not ("string" or "bytes" or "array" or "fixed_string");
+        }
+
+        return field.Type is not ("string" or "bytes" or "array" or "fixed_string");
     }
 
     private static bool CanEmitField(FieldDefinition field, IReadOnlyDictionary<string, WireTypeDefinition> wireTypes)
