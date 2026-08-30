@@ -84,7 +84,8 @@ internal static class PacketDispatcherEmitter
         source.AppendLine("        IPacketDispatchTarget target,");
         source.AppendLine("        global::System.Threading.CancellationToken cancellationToken)");
         source.AppendLine("    {");
-        source.AppendLine($"        if (payload.Length != global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize)");
+        source.AppendLine($"        int payloadSize = global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize;");
+        source.AppendLine("        if (payload.Length != payloadSize)");
         source.AppendLine("        {");
         source.AppendLine("            return new PacketDispatchAttempt(PacketDispatchStatus.MalformedPayload, default);");
         source.AppendLine("        }");
@@ -100,12 +101,12 @@ internal static class PacketDispatcherEmitter
         source.AppendLine("        }");
         source.AppendLine("        else");
         source.AppendLine("        {");
-        source.AppendLine($"            if (global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize > {MaximumStackPayloadSize})");
+        source.AppendLine($"            if (payloadSize > {MaximumStackPayloadSize})");
         source.AppendLine("            {");
         source.AppendLine("                return new PacketDispatchAttempt(PacketDispatchStatus.UnsupportedCodec, default);");
         source.AppendLine("            }");
         source.AppendLine();
-        source.AppendLine($"            global::System.Span<byte> scratch = stackalloc byte[global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize];");
+        source.AppendLine("            global::System.Span<byte> scratch = stackalloc byte[payloadSize];");
         source.AppendLine("            payload.CopyTo(scratch);");
         source.AppendLine("            var reader = new global::Metin2.Protocol.IO.PacketReader(scratch);");
         source.AppendLine($"            if (!global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.TryRead(ref reader, out packet) || reader.Remaining != 0)");
