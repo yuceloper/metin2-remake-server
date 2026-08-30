@@ -41,6 +41,7 @@
 - [x] Byte arrays
 - [x] Strong ID support
 - [x] Array support
+- [x] Reusable fixed composite wire types
 - [x] Protocol version metadata
 - [x] Packet-size metadata
 - [x] Validation rules
@@ -59,15 +60,20 @@
 - [x] Generate packet registry
 - [x] Direction validation
 - [x] Fixed payload-size calculation for scalar/string/primitive-array packets
+- [x] Fixed payload-size calculation through reusable composites
 - [x] Strong ID serialization for fixed scalar codecs
 - [x] Generate fixed-layout primitive codecs
 - [x] Generate legacy fixed ASCII null-terminated string codecs
 - [x] Generate fixed primitive-array codecs
+- [x] Generate fixed composite models/codecs
+- [x] Generate fixed composite-array codecs
+- [x] Generate fixed-string-array codecs
 - [x] Expose fixed `PayloadSize` semantics
 - [ ] Generate fixed raw-byte codecs
 - [ ] Generate variable-length string/bytes/array codecs
 - [x] Generator tests
 - [x] Runtime packet IO tests for fixed ASCII behavior
+- [x] Runtime composite/fixed-string-array round-trip tests
 - [ ] Snapshot/golden tests
 - [x] Verify no runtime reflection
 - [ ] Allocation benchmarks
@@ -113,6 +119,7 @@
 - [x] Session-state validation
 - [x] Direction validation
 - [x] Handler exception isolation
+- [x] Forward-compatible default rejection for unimplemented packet targets
 - [ ] Correlated logging
 - [ ] Packet metrics
 
@@ -128,6 +135,13 @@
 - [x] Document legacy header/payload/sequence framing behavior
 - [x] Document classic sequence progression/validation algorithm
 - [x] Document classic TokenLogin plaintext/security activation boundary
+- [x] Extract character selection protocol
+- [x] Extract game-enter protocol
+- [x] Verify character-selection `#pragma pack(1)` layout and packed sizes
+- [x] Add reference-confirmed CharacterSummary/Characters YAML
+- [x] Add reference-confirmed Empire YAML
+- [x] Add reference-confirmed SelectCharacter YAML
+- [x] Add reference-confirmed EnterGame YAML
 - [ ] Select and verify target client sequence table/profile
 - [x] Add reference-confirmed Handshake YAML
 - [x] Add reference-confirmed Phase YAML
@@ -135,17 +149,16 @@
 - [x] Add reference-confirmed LoginSuccess YAML
 - [x] Add reference-confirmed LoginFailed YAML
 - [x] Add reference-confirmed TokenLogin YAML
-- [ ] Extract character selection protocol
-- [ ] Extract game-enter protocol
 - [ ] Extract movement packets
 - [ ] Extract spawn/despawn packets
 - [ ] Extract chat packets
 - [ ] Extract combat packets
 - [ ] Extract item packets
 - [ ] Extract skill packets
-- [ ] Verify struct packing and endianness against original source
+- [ ] Verify remaining struct packing and endianness against original source
 - [ ] Compare handshake/login with real client packet captures
 - [ ] Verify target-client encryption mode and first post-TokenLogin encrypted traffic
+- [ ] Verify character selection flow with real client packet capture
 
 ## Phase 8 — Handshake
 
@@ -209,7 +222,7 @@
 - [ ] Character create
 - [ ] Character delete
 - [ ] Character select
-- [ ] Character protocol mapping
+- [x] Reference-confirmed character list/select/game-enter protocol mapping
 - [ ] Integration tests
 
 ## Phase 12 — World Foundation
