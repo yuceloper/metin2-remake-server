@@ -1,0 +1,15 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/Channel.cs
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: Channel
+    opcode: 0x79
+    direction: server_to_client
+    phase: game
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: channel_no
+        type: u8
