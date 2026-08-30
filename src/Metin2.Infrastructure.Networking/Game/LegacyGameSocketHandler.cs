@@ -19,7 +19,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly IGameLoginService _loginService;
     private readonly CharacterSelectionService _selectionService;
     private readonly CharacterSelectService _characterSelectService;
+    private readonly CharacterBootstrapService _bootstrapService;
     private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
+    private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -28,7 +30,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         IGameLoginService loginService,
         CharacterSelectionService selectionService,
         CharacterSelectService characterSelectService,
-        ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider)
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
+        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -36,7 +40,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ArgumentNullException.ThrowIfNull(loginService);
         ArgumentNullException.ThrowIfNull(selectionService);
         ArgumentNullException.ThrowIfNull(characterSelectService);
+        ArgumentNullException.ThrowIfNull(bootstrapService);
         ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
+        ArgumentNullException.ThrowIfNull(bootstrapRuntimeContextProvider);
 
         _timeProvider = timeProvider;
         _handshakeTokenSource = handshakeTokenSource;
@@ -44,7 +50,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _loginService = loginService;
         _selectionService = selectionService;
         _characterSelectService = characterSelectService;
+        _bootstrapService = bootstrapService;
         _selectionWireContextProvider = selectionWireContextProvider;
+        _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
@@ -70,10 +78,15 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             session,
             _loginService,
             selectionPublisher);
+        var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(
+            connection.Output,
+            _bootstrapService,
+            _bootstrapRuntimeContextProvider);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(
             session,
             connection.Output,
-            _characterSelectService);
+            _characterSelectService,
+            bootstrapPublisher);
         var target = new GameConnectionDispatchTarget(
             handshakeTarget,
             loginTarget,

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using Metin2.Infrastructure.Networking.Game;
@@ -17,7 +18,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyGameSocketHandlerTests
 {
     [TestMethod]
-    public async Task Handshake_token_login_and_owned_character_select_reach_loading_phase()
+    public async Task Handshake_login_select_and_bootstrap_flow_over_one_tcp_connection()
     {
         using var cancellation = new CancellationTokenSource();
         var loginService = new RecordingGameLoginService();
@@ -30,6 +31,30 @@ public sealed class LegacyGameSocketHandlerTests
         var listService = new CharacterListService(characterRepository);
         var selectionService = new CharacterSelectionService(new FixedEmpireRepository(2), listService);
         var selectService = new CharacterSelectService(characterRepository);
+        var bootstrapService = new CharacterBootstrapService(new FixedBootstrapRepository(
+            new CharacterBootstrapSnapshot(
+                new CharacterId(101),
+                new AccountId(7),
+                "Warrior",
+                0,
+                42,
+                987654,
+                123456,
+                10,
+                11,
+                12,
+                13,
+                0,
+                0,
+                1000,
+                2000,
+                new MapId(1),
+                0,
+                7,
+                2)));
+        var points = new uint[255];
+        points[5] = 777;
+        points[6] = 999;
         var handler = new LegacyGameSocketHandler(
             new ConstantTimeProvider(1_000),
             new FixedHandshakeTokenSource(0xAABBCCDD),
@@ -37,12 +62,25 @@ public sealed class LegacyGameSocketHandlerTests
             loginService,
             selectionService,
             selectService,
+            bootstrapService,
             new FixedSelectionContextProvider(new LegacyCharacterSelectionWireContext(
                 0x01020304,
                 13000,
                 0x11223344,
                 0x55667788,
-                0xA5)));
+                0xA5)),
+            new FixedBootstrapRuntimeContextProvider(new LegacyCharacterBootstrapRuntimeContext(
+                0x01020304,
+                points,
+                new ushort[] { 10, 20, 0, 30 },
+                150,
+                140,
+                0,
+                new uint[2],
+                new GuildId(0),
+                0,
+                0,
+                0)));
 
         await using var listener = new TcpGameListener(new IPEndPoint(IPAddress.Loopback, 0));
         Task listenerTask = listener.RunAsync(handler, cancellation.Token);
@@ -93,10 +131,30 @@ public sealed class LegacyGameSocketHandlerTests
         Assert.AreEqual((byte)LegacyPhaseCode.Loading, loadingPhase[1]);
         Assert.AreEqual(new CharacterId(101), characterRepository.LastSelectedCharacterId);
 
+        byte[] bootstrap = await ReceiveExactAsync(client, 1102);
+        Assert.AreEqual((byte)0x71, bootstrap[0]);
+        Assert.AreEqual((byte)0x10, bootstrap[46]);
+        Assert.AreEqual((byte)0x13, bootstrap[1067]);
+
+        const int pointPayloadOffset = 47;
+        Assert.AreEqual(42u, ReadPoint(bootstrap, pointPayloadOffset, 1));
+        Assert.AreEqual(987654u, ReadPoint(bootstrap, pointPayloadOffset, 3));
+        Assert.AreEqual(777u, ReadPoint(bootstrap, pointPayloadOffset, 5));
+        Assert.AreEqual(999u, ReadPoint(bootstrap, pointPayloadOffset, 6));
+        Assert.AreEqual(123456u, ReadPoint(bootstrap, pointPayloadOffset, 11));
+        Assert.AreEqual(10u, ReadPoint(bootstrap, pointPayloadOffset, 12));
+        Assert.AreEqual(11u, ReadPoint(bootstrap, pointPayloadOffset, 13));
+        Assert.AreEqual(12u, ReadPoint(bootstrap, pointPayloadOffset, 14));
+        Assert.AreEqual(13u, ReadPoint(bootstrap, pointPayloadOffset, 15));
+        Assert.AreEqual(7u, ReadPoint(bootstrap, pointPayloadOffset, 26));
+
         client.Shutdown(SocketShutdown.Send);
         cancellation.Cancel();
         await listenerTask;
     }
+
+    private static uint ReadPoint(byte[] frame, int payloadOffset, int index) =>
+        BinaryPrimitives.ReadUInt32LittleEndian(frame.AsSpan(payloadOffset + (index * sizeof(uint)), sizeof(uint)));
 
     private static CharacterListEntry CreateCharacter(
         byte slot,
@@ -187,6 +245,19 @@ public sealed class LegacyGameSocketHandlerTests
         }
     }
 
+    private sealed class FixedBootstrapRepository(CharacterBootstrapSnapshot snapshot) : ICharacterBootstrapRepository
+    {
+        public ValueTask<CharacterBootstrapSnapshot?> GetOwnedAsync(
+            AccountId accountId,
+            CharacterId characterId,
+            CancellationToken cancellationToken = default)
+        {
+            CharacterBootstrapSnapshot? result =
+                snapshot.AccountId == accountId && snapshot.CharacterId == characterId ? snapshot : null;
+            return ValueTask.FromResult(result);
+        }
+    }
+
     private sealed class FixedEmpireRepository(byte empire) : IAccountEmpireRepository
     {
         public ValueTask<byte> GetEmpireAsync(
@@ -199,6 +270,14 @@ public sealed class LegacyGameSocketHandlerTests
         : ILegacyCharacterSelectionWireContextProvider
     {
         public LegacyCharacterSelectionWireContext Get(GameSession session) => context;
+    }
+
+    private sealed class FixedBootstrapRuntimeContextProvider(LegacyCharacterBootstrapRuntimeContext context)
+        : ILegacyCharacterBootstrapRuntimeContextProvider
+    {
+        public LegacyCharacterBootstrapRuntimeContext Get(
+            GameSession session,
+            in CharacterBootstrapSnapshot snapshot) => context;
     }
 
     private sealed class FixedHandshakeTokenSource(uint token) : IHandshakeTokenSource
