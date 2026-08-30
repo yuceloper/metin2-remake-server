@@ -186,7 +186,7 @@
 - [x] Connection pooling via `NpgsqlDataSource`
 - [ ] Repository contracts
 - [x] PostgreSQL account credential verifier
-- [ ] Persistence integration tests against live PostgreSQL
+- [x] Persistence integration tests against live PostgreSQL
 - [ ] Query timing metrics
 - [ ] Health check
 
