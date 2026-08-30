@@ -20,4 +20,5 @@ public readonly record struct CharacterBootstrapSnapshot(
     int PositionY,
     MapId MapId,
     byte SkillGroup,
-    uint AvailableStatusPoints);
+    uint AvailableStatusPoints,
+    byte Empire);
