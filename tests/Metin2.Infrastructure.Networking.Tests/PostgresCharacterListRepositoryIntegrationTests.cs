@@ -12,7 +12,7 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
     private const string ConnectionStringEnvironmentVariable = "METIN2_TEST_POSTGRES_CONNECTION_STRING";
 
     [TestMethod]
-    public async Task Selection_snapshot_is_account_scoped_and_slot_ordered_against_live_postgres()
+    public async Task Selection_snapshot_and_owned_slot_lookup_are_account_scoped_against_live_postgres()
     {
         string? connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -41,11 +41,13 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
 
         var listRepository = new PostgresCharacterListRepository(dataSource);
         var empireRepository = new PostgresAccountEmpireRepository(dataSource);
+        var ownedSelectionRepository = new PostgresCharacterSelectionRepository(dataSource);
         var listService = new CharacterListService(listRepository);
         var selectionService = new CharacterSelectionService(empireRepository, listService);
+        var selectService = new CharacterSelectService(ownedSelectionRepository);
+        var firstAccount = new AccountId(checked((uint)firstAccountId));
 
-        CharacterSelectionSnapshot snapshot = await selectionService.GetAsync(
-            new AccountId(checked((uint)firstAccountId)));
+        CharacterSelectionSnapshot snapshot = await selectionService.GetAsync(firstAccount);
         IReadOnlyList<CharacterListEntry> characters = snapshot.Characters;
 
         Assert.AreEqual((byte)2, snapshot.Empire);
@@ -62,6 +64,16 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
         Assert.AreEqual("SecondSlot", characters[1].Name);
         Assert.AreEqual(new GuildId(0), characters[1].GuildId);
         Assert.AreEqual(string.Empty, characters[1].GuildName);
+
+        CharacterSelectResult ownedSlot = await selectService.SelectAsync(firstAccount, 0);
+        CharacterSelectResult otherAccountsSlot = await selectService.SelectAsync(firstAccount, 1);
+        CharacterSelectResult secondOwnedSlot = await selectService.SelectAsync(firstAccount, 2);
+
+        Assert.IsTrue(ownedSlot.IsSuccess);
+        Assert.AreEqual(new CharacterId(101), ownedSlot.CharacterId);
+        Assert.IsFalse(otherAccountsSlot.IsSuccess);
+        Assert.IsTrue(secondOwnedSlot.IsSuccess);
+        Assert.AreEqual(new CharacterId(202), secondOwnedSlot.CharacterId);
     }
 
     private static async Task<long> CreateAccountAsync(NpgsqlDataSource dataSource, string username, short empire)

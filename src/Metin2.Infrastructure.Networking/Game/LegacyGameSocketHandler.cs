@@ -18,6 +18,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly LegacySequenceProfile _sequenceProfile;
     private readonly IGameLoginService _loginService;
     private readonly CharacterSelectionService _selectionService;
+    private readonly CharacterSelectService _characterSelectService;
     private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
 
     public LegacyGameSocketHandler(
@@ -26,6 +27,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         LegacySequenceProfile sequenceProfile,
         IGameLoginService loginService,
         CharacterSelectionService selectionService,
+        CharacterSelectService characterSelectService,
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -33,6 +35,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ArgumentNullException.ThrowIfNull(sequenceProfile);
         ArgumentNullException.ThrowIfNull(loginService);
         ArgumentNullException.ThrowIfNull(selectionService);
+        ArgumentNullException.ThrowIfNull(characterSelectService);
         ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
 
         _timeProvider = timeProvider;
@@ -40,6 +43,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _sequenceProfile = sequenceProfile;
         _loginService = loginService;
         _selectionService = selectionService;
+        _characterSelectService = characterSelectService;
         _selectionWireContextProvider = selectionWireContextProvider;
     }
 
@@ -66,7 +70,14 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             session,
             _loginService,
             selectionPublisher);
-        var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget);
+        var characterSelectTarget = new GameCharacterSelectDispatchTarget(
+            session,
+            connection.Output,
+            _characterSelectService);
+        var target = new GameConnectionDispatchTarget(
+            handshakeTarget,
+            loginTarget,
+            characterSelectTarget);
         var consumer = new TypedPacketFrameConsumer(target);
 
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
