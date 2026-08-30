@@ -1,0 +1,20 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterPoints.cs
+# Point semantics are indexed by the legacy EPoints table; most entries are zero/derived at runtime.
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: CharacterPoints
+    opcode: 0x10
+    direction: server_to_client
+    phase: loading
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: points
+        type: array
+        length: 255
+        element:
+          type: u32le
