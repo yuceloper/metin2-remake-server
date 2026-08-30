@@ -39,7 +39,10 @@ internal static class PacketDispatcherEmitter
         source.AppendLine("{");
         foreach (PacketDefinition packet in dispatchable)
         {
-            source.AppendLine($"    global::System.Threading.Tasks.ValueTask HandleAsync(global::Metin2.Protocol.Generated.Packets.{packet.Name} packet, global::System.Threading.CancellationToken cancellationToken);");
+            source.AppendLine($"    global::System.Threading.Tasks.ValueTask HandleAsync(global::Metin2.Protocol.Generated.Packets.{packet.Name} packet, global::System.Threading.CancellationToken cancellationToken)");
+            source.AppendLine("    {");
+            source.AppendLine($"        return global::System.Threading.Tasks.ValueTask.FromException(new global::System.NotSupportedException(\"Dispatch target does not handle packet '{packet.Name}'.\"));");
+            source.AppendLine("    }");
         }
         source.AppendLine("}");
         source.AppendLine();
@@ -76,7 +79,6 @@ internal static class PacketDispatcherEmitter
 
     private static void EmitPacketMethod(StringBuilder source, PacketDefinition packet)
     {
-        int payloadSize = GetPayloadSize(packet);
         source.AppendLine($"    private static PacketDispatchAttempt Dispatch{packet.Name}(");
         source.AppendLine("        in global::System.Buffers.ReadOnlySequence<byte> payload,");
         source.AppendLine("        IPacketDispatchTarget target,");
@@ -87,16 +89,6 @@ internal static class PacketDispatcherEmitter
         source.AppendLine("            return new PacketDispatchAttempt(PacketDispatchStatus.MalformedPayload, default);");
         source.AppendLine("        }");
         source.AppendLine();
-
-        if (payloadSize > MaximumStackPayloadSize)
-        {
-            source.AppendLine("        if (!payload.IsSingleSegment)");
-            source.AppendLine("        {");
-            source.AppendLine("            return new PacketDispatchAttempt(PacketDispatchStatus.UnsupportedCodec, default);");
-            source.AppendLine("        }");
-            source.AppendLine();
-        }
-
         source.AppendLine($"        global::Metin2.Protocol.Generated.Packets.{packet.Name} packet;");
         source.AppendLine("        if (payload.IsSingleSegment)");
         source.AppendLine("        {");
@@ -108,84 +100,23 @@ internal static class PacketDispatcherEmitter
         source.AppendLine("        }");
         source.AppendLine("        else");
         source.AppendLine("        {");
-
-        if (payloadSize <= MaximumStackPayloadSize)
-        {
-            source.AppendLine($"            global::System.Span<byte> scratch = stackalloc byte[global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize];");
-            source.AppendLine("            payload.CopyTo(scratch);");
-            source.AppendLine("            var reader = new global::Metin2.Protocol.IO.PacketReader(scratch);");
-            source.AppendLine($"            if (!global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.TryRead(ref reader, out packet) || reader.Remaining != 0)");
-            source.AppendLine("            {");
-            source.AppendLine("                return new PacketDispatchAttempt(PacketDispatchStatus.MalformedPayload, default);");
-            source.AppendLine("            }");
-        }
-        else
-        {
-            source.AppendLine("            return new PacketDispatchAttempt(PacketDispatchStatus.UnsupportedCodec, default);");
-        }
-
+        source.AppendLine($"            if (global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize > {MaximumStackPayloadSize})");
+        source.AppendLine("            {");
+        source.AppendLine("                return new PacketDispatchAttempt(PacketDispatchStatus.UnsupportedCodec, default);");
+        source.AppendLine("            }");
+        source.AppendLine();
+        source.AppendLine($"            global::System.Span<byte> scratch = stackalloc byte[global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.PayloadSize];");
+        source.AppendLine("            payload.CopyTo(scratch);");
+        source.AppendLine("            var reader = new global::Metin2.Protocol.IO.PacketReader(scratch);");
+        source.AppendLine($"            if (!global::Metin2.Protocol.Generated.Packets.{packet.Name}Codec.TryRead(ref reader, out packet) || reader.Remaining != 0)");
+        source.AppendLine("            {");
+        source.AppendLine("                return new PacketDispatchAttempt(PacketDispatchStatus.MalformedPayload, default);");
+        source.AppendLine("            }");
         source.AppendLine("        }");
         source.AppendLine();
         source.AppendLine("        return new PacketDispatchAttempt(");
         source.AppendLine("            PacketDispatchStatus.Done,");
         source.AppendLine("            target.HandleAsync(packet, cancellationToken));");
         source.AppendLine("    }");
-    }
-
-    private static int GetPayloadSize(PacketDefinition packet)
-    {
-        int size = 0;
-        foreach (FieldDefinition field in packet.Fields)
-        {
-            if (TryGetScalarSize(field.Type, out int scalarSize))
-            {
-                size = checked(size + scalarSize);
-                continue;
-            }
-
-            if (field.Type == "fixed_string")
-            {
-                size = checked(size + field.Length!.Value);
-                continue;
-            }
-
-            if (field.Type == "array")
-            {
-                _ = TryGetScalarSize(field.Element!.Type, out int elementSize);
-                size = checked(size + checked(field.Length!.Value * elementSize));
-                continue;
-            }
-
-            throw new InvalidOperationException($"Packet '{packet.Name}' is not fixed-codec dispatchable.");
-        }
-
-        return size;
-    }
-
-    private static bool TryGetScalarSize(string type, out int size)
-    {
-        switch (type)
-        {
-            case "i8":
-            case "u8":
-            case "bool8": size = 1; return true;
-            case "i16le":
-            case "i16be":
-            case "u16le":
-            case "u16be": size = 2; return true;
-            case "i32le":
-            case "i32be":
-            case "u32le":
-            case "u32be":
-            case "f32le":
-            case "f32be": size = 4; return true;
-            case "i64le":
-            case "i64be":
-            case "u64le":
-            case "u64be":
-            case "f64le":
-            case "f64be": size = 8; return true;
-            default: size = 0; return false;
-        }
     }
 }
