@@ -4,6 +4,7 @@ using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.World;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
+using Metin2.Protocol.Legacy;
 using Metin2.Shared.Identity;
 
 namespace Metin2.Infrastructure.Networking.Game;
