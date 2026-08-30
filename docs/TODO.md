@@ -163,7 +163,7 @@
 
 - [x] Auth module application core
 - [ ] Account model
-- [ ] Password hashing strategy
+- [x] Password hashing strategy
 - [x] Login request wire handler
 - [x] Login application service
 - [x] Credential verifier port
@@ -179,13 +179,14 @@
 
 ## Phase 10 — PostgreSQL
 
-- [ ] PostgreSQL Docker setup
-- [ ] Migration strategy
-- [ ] Account schema
+- [x] PostgreSQL Docker setup
+- [x] Migration strategy
+- [x] Account schema
 - [ ] Character schema
-- [ ] Connection pooling
+- [x] Connection pooling via `NpgsqlDataSource`
 - [ ] Repository contracts
-- [ ] Persistence integration tests
+- [x] PostgreSQL account credential verifier
+- [ ] Persistence integration tests against live PostgreSQL
 - [ ] Query timing metrics
 - [ ] Health check
 
