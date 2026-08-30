@@ -168,6 +168,8 @@
 - [x] Login application service
 - [x] Credential verifier port
 - [x] Auth token issuer port
+- [x] Auth token consumer port
+- [x] One-time Auth -> Game token handoff
 - [x] Reference-confirmed login request/result packet definitions
 - [x] Same-socket Handshake -> Auth login composition
 - [ ] Session authentication state
@@ -182,6 +184,7 @@
 - [x] PostgreSQL Docker setup
 - [x] Migration strategy
 - [x] Account schema
+- [x] Auth token schema and one-time store
 - [ ] Character schema
 - [x] Connection pooling via `NpgsqlDataSource`
 - [ ] Repository contracts
