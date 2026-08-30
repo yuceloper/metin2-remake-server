@@ -14,26 +14,28 @@ public sealed class PostgresCharacterBootstrapRepository(NpgsqlDataSource dataSo
         await using NpgsqlCommand command = dataSource.CreateCommand(
             """
             SELECT
-                id,
-                account_id,
-                name,
-                class,
-                level,
-                experience,
-                gold,
-                strength,
-                vitality,
-                dexterity,
-                intelligence,
-                body_part,
-                hair_part,
-                position_x,
-                position_y,
-                map_id,
-                skill_group,
-                available_status_points
-            FROM characters
-            WHERE id = $1 AND account_id = $2
+                c.id,
+                c.account_id,
+                c.name,
+                c.class,
+                c.level,
+                c.experience,
+                c.gold,
+                c.strength,
+                c.vitality,
+                c.dexterity,
+                c.intelligence,
+                c.body_part,
+                c.hair_part,
+                c.position_x,
+                c.position_y,
+                c.map_id,
+                c.skill_group,
+                c.available_status_points,
+                a.empire
+            FROM characters AS c
+            INNER JOIN accounts AS a ON a.id = c.account_id
+            WHERE c.id = $1 AND c.account_id = $2
             LIMIT 1;
             """);
         command.Parameters.AddWithValue((long)characterId.Value);
@@ -66,6 +68,7 @@ public sealed class PostgresCharacterBootstrapRepository(NpgsqlDataSource dataSo
             reader.GetInt32(14),
             new MapId(reader.GetInt32(15)),
             checked((byte)reader.GetInt16(16)),
-            checked((uint)reader.GetInt64(17)));
+            checked((uint)reader.GetInt64(17)),
+            checked((byte)reader.GetInt16(18)));
     }
 }
