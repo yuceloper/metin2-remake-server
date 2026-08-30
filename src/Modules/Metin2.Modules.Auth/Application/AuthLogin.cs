@@ -32,6 +32,16 @@ public interface IAuthTokenIssuer
         CancellationToken cancellationToken = default);
 }
 
+public readonly record struct AuthTokenPrincipal(AccountId AccountId, string Username);
+
+public interface IAuthTokenConsumer
+{
+    ValueTask<AuthTokenPrincipal?> ConsumeAsync(
+        uint token,
+        string username,
+        CancellationToken cancellationToken = default);
+}
+
 public enum AuthLoginFailure : byte
 {
     InvalidCredentials = 1
