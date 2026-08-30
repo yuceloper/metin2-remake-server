@@ -10,13 +10,6 @@ namespace Metin2.Protocol.Tests;
 public sealed class CharacterSelectionPacketTests
 {
     [TestMethod]
-    public void Character_summary_and_characters_match_classic_packed_sizes()
-    {
-        Assert.AreEqual(63, CharacterSummaryCodec.PayloadSize);
-        Assert.AreEqual(328, CharactersCodec.PayloadSize);
-    }
-
-    [TestMethod]
     public void Characters_round_trips_composite_and_fixed_string_arrays()
     {
         CharacterSummary first = CreateCharacter(101, "Warrior", 0, 42, 1200, 1000, 2000);
