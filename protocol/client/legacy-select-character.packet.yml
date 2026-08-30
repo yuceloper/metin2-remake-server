@@ -1,0 +1,17 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Game/Packets/SelectCharacter.cs
+# - classic client UserInterface/Packet.h TPacketCGSelectCharacter
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: SelectCharacter
+    opcode: 0x06
+    direction: client_to_server
+    phase: select
+    size: fixed
+    sequence: true
+    since: 1
+    fields:
+      - name: slot
+        type: u8
