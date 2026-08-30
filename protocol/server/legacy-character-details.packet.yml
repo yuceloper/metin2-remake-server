@@ -1,0 +1,35 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterDetails.cs
+# The reference outgoing serializer writes only the generated packet bytes; no trailing sequence byte is appended.
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: CharacterDetails
+    opcode: 0x71
+    direction: server_to_client
+    phase: loading
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: vid
+        type: u32le
+      - name: class
+        type: u16le
+      - name: name
+        type: fixed_string
+        length: 25
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: position_x
+        type: i32le
+      - name: position_y
+        type: i32le
+      - name: position_z
+        type: i32le
+      - name: empire
+        type: u8
+      - name: skill_group
+        type: u8
