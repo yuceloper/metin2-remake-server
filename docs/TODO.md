@@ -161,16 +161,21 @@
 
 ## Phase 9 — Authentication
 
-- [ ] Auth module
+- [x] Auth module application core
 - [ ] Account model
 - [ ] Password hashing strategy
-- [ ] Login request handler
-- [ ] Login application service
+- [x] Login request wire handler
+- [x] Login application service
+- [x] Credential verifier port
+- [x] Auth token issuer port
 - [x] Reference-confirmed login request/result packet definitions
+- [x] Same-socket Handshake -> Auth login composition
 - [ ] Session authentication state
 - [ ] Duplicate-login policy
+- [ ] Account-status/client-status mapping
 - [ ] Brute-force/rate limiting policy
-- [ ] Auth integration tests
+- [x] Auth integration tests with deterministic sequence profile
+- [ ] Configure verified production client sequence profile
 
 ## Phase 10 — PostgreSQL
 
