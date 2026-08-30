@@ -10,13 +10,19 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
 {
     private readonly GameSession _session;
     private readonly IGameLoginService _loginService;
+    private readonly ILegacyCharacterSelectionPublisher _selectionPublisher;
 
-    public GameTokenLoginDispatchTarget(GameSession session, IGameLoginService loginService)
+    public GameTokenLoginDispatchTarget(
+        GameSession session,
+        IGameLoginService loginService,
+        ILegacyCharacterSelectionPublisher selectionPublisher)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(loginService);
+        ArgumentNullException.ThrowIfNull(selectionPublisher);
         _session = session;
         _loginService = loginService;
+        _selectionPublisher = selectionPublisher;
     }
 
     public async ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken)
@@ -31,6 +37,7 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         }
 
         _session.Authenticate(result.AccountId, result.Username, packet.XteaKey.Span);
+        await _selectionPublisher.PublishAsync(_session, cancellationToken).ConfigureAwait(false);
     }
 
     public ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken) => Unsupported(packet);

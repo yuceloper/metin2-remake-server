@@ -3,5 +3,6 @@
     <ProjectReference Include="../Metin2.Protocol/Metin2.Protocol.csproj" />
     <ProjectReference Include="../Modules/Metin2.Modules.Auth/Metin2.Modules.Auth.csproj" />
     <ProjectReference Include="../Modules/Metin2.Modules.Game/Metin2.Modules.Game.csproj" />
+    <ProjectReference Include="../Modules/Metin2.Modules.Characters/Metin2.Modules.Characters.csproj" />
   </ItemGroup>
 </Project>

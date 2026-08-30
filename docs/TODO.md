@@ -41,12 +41,13 @@
 - [x] Byte arrays
 - [x] Strong ID support
 - [x] Array support
-- [x] Reusable fixed composite wire types
 - [x] Protocol version metadata
 - [x] Packet-size metadata
 - [x] Validation rules
 - [x] Packet sequence metadata
 - [x] Define payload-vs-framing boundary
+- [x] Reusable fixed composite wire types
+- [x] Fixed-string and composite array element metadata
 
 ## Phase 3 — Roslyn Packet Generator
 
@@ -59,13 +60,12 @@
 - [ ] Complete deserializers for every schema field kind
 - [x] Generate packet registry
 - [x] Direction validation
-- [x] Fixed payload-size calculation for scalar/string/primitive-array packets
-- [x] Fixed payload-size calculation through reusable composites
+- [x] Fixed payload-size calculation for scalar/string/primitive-array/composite packets
 - [x] Strong ID serialization for fixed scalar codecs
 - [x] Generate fixed-layout primitive codecs
 - [x] Generate legacy fixed ASCII null-terminated string codecs
 - [x] Generate fixed primitive-array codecs
-- [x] Generate fixed composite models/codecs
+- [x] Generate reusable fixed composite codecs
 - [x] Generate fixed composite-array codecs
 - [x] Generate fixed-string-array codecs
 - [x] Expose fixed `PayloadSize` semantics
@@ -73,7 +73,7 @@
 - [ ] Generate variable-length string/bytes/array codecs
 - [x] Generator tests
 - [x] Runtime packet IO tests for fixed ASCII behavior
-- [x] Runtime composite/fixed-string-array round-trip tests
+- [x] Runtime composite/fixed-string-array round-trip coverage
 - [ ] Snapshot/golden tests
 - [x] Verify no runtime reflection
 - [ ] Allocation benchmarks
@@ -205,25 +205,33 @@
 - [x] Migration strategy
 - [x] Account schema
 - [x] Auth token schema and one-time store
-- [ ] Character schema
+- [x] Character schema
+- [x] Account empire persistence for selection flow
 - [x] Connection pooling via `NpgsqlDataSource`
-- [ ] Repository contracts
+- [x] Repository contracts for current auth/character read slices
 - [x] PostgreSQL account credential verifier
+- [x] PostgreSQL character list and empire adapters
 - [x] Persistence integration tests against live PostgreSQL
 - [ ] Query timing metrics
 - [ ] Health check
 
 ## Phase 11 — Characters
 
-- [ ] Character module
-- [ ] Character model
-- [ ] Character repository
-- [ ] Character list
+- [x] Character module
+- [ ] Full Character domain model
+- [x] Character list read model
+- [x] Character repository/read ports
+- [x] Account-scoped character list application service
+- [x] Character-selection snapshot (Empire + ordered slots)
+- [x] Character list wire publication after TokenLogin
+- [x] Preserve empty legacy character slots
+- [x] Publish `Empire -> FD 03 -> Characters` in reference-confirmed order
 - [ ] Character create
 - [ ] Character delete
-- [ ] Character select
+- [ ] Character select command handling
 - [x] Reference-confirmed character list/select/game-enter protocol mapping
-- [ ] Integration tests
+- [x] Character list/persistence/network integration tests
+- [ ] Verify character list with real stock client
 
 ## Phase 12 — World Foundation
 
