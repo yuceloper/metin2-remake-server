@@ -11,7 +11,8 @@ namespace Metin2.Infrastructure.Networking.Game;
 public sealed class GameCharacterSelectDispatchTarget(
     GameSession session,
     PipeWriter output,
-    CharacterSelectService selectService)
+    CharacterSelectService selectService,
+    ILegacyCharacterBootstrapPublisher bootstrapPublisher)
 {
     private const int PhaseFrameSize = 1 + PhaseCodec.PayloadSize;
 
@@ -49,6 +50,8 @@ public sealed class GameCharacterSelectDispatchTarget(
 
         session.SelectCharacter(result.CharacterId);
         session.TransitionTo(PacketPhase.Loading);
+
+        await bootstrapPublisher.PublishAsync(session, cancellationToken).ConfigureAwait(false);
     }
 }
 
