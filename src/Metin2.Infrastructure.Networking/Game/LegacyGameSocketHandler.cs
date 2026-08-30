@@ -6,8 +6,10 @@ using Metin2.Infrastructure.Networking.Receive;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
+using Metin2.Modules.World;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Legacy;
+using Metin2.Shared.Identity;
 
 namespace Metin2.Infrastructure.Networking.Game;
 
@@ -22,6 +24,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly CharacterBootstrapService _bootstrapService;
     private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
     private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
+    private readonly PlayerRuntimeRegistry _runtimeRegistry;
+    private readonly byte _channelNo;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -32,7 +36,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         CharacterSelectService characterSelectService,
         CharacterBootstrapService bootstrapService,
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
-        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider)
+        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
+        PlayerRuntimeRegistry runtimeRegistry,
+        byte channelNo = 1)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -43,6 +49,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ArgumentNullException.ThrowIfNull(bootstrapService);
         ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
         ArgumentNullException.ThrowIfNull(bootstrapRuntimeContextProvider);
+        ArgumentNullException.ThrowIfNull(runtimeRegistry);
 
         _timeProvider = timeProvider;
         _handshakeTokenSource = handshakeTokenSource;
@@ -53,6 +60,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _bootstrapService = bootstrapService;
         _selectionWireContextProvider = selectionWireContextProvider;
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
+        _runtimeRegistry = runtimeRegistry;
+        _channelNo = channelNo;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
@@ -78,19 +87,29 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             session,
             _loginService,
             selectionPublisher);
+        var worldRuntimeContextProvider = new WorldCharacterBootstrapRuntimeContextProvider(
+            _runtimeRegistry,
+            _bootstrapRuntimeContextProvider);
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(
             connection.Output,
             _bootstrapService,
-            _bootstrapRuntimeContextProvider);
+            worldRuntimeContextProvider);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(
             session,
             connection.Output,
             _characterSelectService,
             bootstrapPublisher);
+        var enterGameTarget = new GameEnterGameDispatchTarget(
+            session,
+            connection.Output,
+            _runtimeRegistry,
+            _timeProvider,
+            _channelNo);
         var target = new GameConnectionDispatchTarget(
             handshakeTarget,
             loginTarget,
-            characterSelectTarget);
+            characterSelectTarget,
+            enterGameTarget);
         var consumer = new TypedPacketFrameConsumer(target);
 
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
@@ -106,6 +125,12 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         }
         finally
         {
+            if (session.RuntimeEntityId is EntityId runtimeEntityId)
+            {
+                _runtimeRegistry.Release(runtimeEntityId);
+                session.DetachRuntimeEntity();
+            }
+
             await connection.CompleteOutputAsync().ConfigureAwait(false);
 
             try

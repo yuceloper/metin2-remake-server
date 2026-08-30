@@ -7,6 +7,7 @@ using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
+using Metin2.Modules.World;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
 using Metin2.Protocol.Legacy;
@@ -18,7 +19,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyGameSocketHandlerTests
 {
     [TestMethod]
-    public async Task Handshake_login_select_and_bootstrap_flow_over_one_tcp_connection()
+    public async Task Handshake_login_select_bootstrap_and_enter_game_flow_over_one_tcp_connection()
     {
         using var cancellation = new CancellationTokenSource();
         var loginService = new RecordingGameLoginService();
@@ -55,6 +56,7 @@ public sealed class LegacyGameSocketHandlerTests
         var points = new uint[255];
         points[5] = 777;
         points[6] = 999;
+        var runtimeRegistry = new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator(5000));
         var handler = new LegacyGameSocketHandler(
             new ConstantTimeProvider(1_000),
             new FixedHandshakeTokenSource(0xAABBCCDD),
@@ -70,7 +72,7 @@ public sealed class LegacyGameSocketHandlerTests
                 0x55667788,
                 0xA5)),
             new FixedBootstrapRuntimeContextProvider(new LegacyCharacterBootstrapRuntimeContext(
-                0x01020304,
+                0xDEADBEEF,
                 points,
                 new ushort[] { 10, 20, 0, 30 },
                 150,
@@ -80,7 +82,8 @@ public sealed class LegacyGameSocketHandlerTests
                 new GuildId(0),
                 0,
                 0,
-                0)));
+                0)),
+            runtimeRegistry);
 
         await using var listener = new TcpGameListener(new IPEndPoint(IPAddress.Loopback, 0));
         Task listenerTask = listener.RunAsync(handler, cancellation.Token);
@@ -133,8 +136,10 @@ public sealed class LegacyGameSocketHandlerTests
 
         byte[] bootstrap = await ReceiveExactAsync(client, 1102);
         Assert.AreEqual((byte)0x71, bootstrap[0]);
+        Assert.AreEqual(5000u, BinaryPrimitives.ReadUInt32LittleEndian(bootstrap.AsSpan(1, sizeof(uint))));
         Assert.AreEqual((byte)0x10, bootstrap[46]);
         Assert.AreEqual((byte)0x13, bootstrap[1067]);
+        Assert.AreEqual(5000u, BinaryPrimitives.ReadUInt32LittleEndian(bootstrap.AsSpan(1068, sizeof(uint))));
 
         const int pointPayloadOffset = 47;
         Assert.AreEqual(42u, ReadPoint(bootstrap, pointPayloadOffset, 1));
@@ -148,9 +153,30 @@ public sealed class LegacyGameSocketHandlerTests
         Assert.AreEqual(13u, ReadPoint(bootstrap, pointPayloadOffset, 15));
         Assert.AreEqual(7u, ReadPoint(bootstrap, pointPayloadOffset, 26));
 
+        var enterGame = new EnterGame();
+        var enterGameFrame = new byte[2];
+        PacketFrameWriteStatus enterStatus = PacketFrameWriter.TryWrite(
+            in enterGame,
+            0xAA,
+            enterGameFrame,
+            out int enterWritten);
+        Assert.AreEqual(PacketFrameWriteStatus.Done, enterStatus);
+        Assert.AreEqual(enterGameFrame.Length, enterWritten);
+
+        await SendAllAsync(client, enterGameFrame);
+        byte[] gameBootstrap = await ReceiveExactAsync(client, 9);
+        Assert.AreEqual((byte)0xFD, gameBootstrap[0]);
+        Assert.AreEqual((byte)LegacyPhaseCode.Game, gameBootstrap[1]);
+        Assert.AreEqual((byte)0x6A, gameBootstrap[2]);
+        Assert.AreEqual(1000u, BinaryPrimitives.ReadUInt32LittleEndian(gameBootstrap.AsSpan(3, sizeof(uint))));
+        Assert.AreEqual((byte)0x79, gameBootstrap[7]);
+        Assert.AreEqual((byte)1, gameBootstrap[8]);
+
         client.Shutdown(SocketShutdown.Send);
         cancellation.Cancel();
         await listenerTask;
+
+        Assert.IsFalse(runtimeRegistry.TryGetByCharacter(new CharacterId(101), out _));
     }
 
     private static uint ReadPoint(byte[] frame, int payloadOffset, int index) =>
