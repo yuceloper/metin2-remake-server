@@ -83,6 +83,37 @@ FD 02   # Game/Login
 
 This is a development compatibility probe, not proof that a stock Metin2 client is compatible yet.
 
+## Local PostgreSQL
+
+A development PostgreSQL service is available through Docker Compose. The defaults are explicitly development-only and can be overridden with environment variables.
+
+```bash
+docker compose up -d postgres
+```
+
+Default local values:
+
+```text
+host:     127.0.0.1
+port:     5432
+database: metin2
+username: metin2
+password: metin2-dev-only
+```
+
+Override them with:
+
+```text
+METIN2_POSTGRES_DB
+METIN2_POSTGRES_USER
+METIN2_POSTGRES_PASSWORD
+METIN2_POSTGRES_PORT
+```
+
+Database changes are explicit embedded SQL migrations under `src/Metin2.Infrastructure.Persistence.Postgres/Migrations`. `PostgresMigrator` records successfully applied versions in `schema_migrations` and executes each new migration transactionally.
+
+Authentication password hashes use a versioned PBKDF2-HMAC-SHA256 format. The current production default is 600,000 iterations with a unique random salt. The algorithm and work factor are encoded with each stored hash so password storage can be upgraded without changing the Auth application contract.
+
 ## Repository Structure
 
 ```text
@@ -92,6 +123,9 @@ src/
   Metin2.Protocol.Generator/
   Metin2.Shared/
   Metin2.Infrastructure.Networking/
+  Metin2.Infrastructure.Persistence.Postgres/
+  Modules/
+    Metin2.Modules.Auth/
 
 tools/
   Metin2.HandshakeProbe/
