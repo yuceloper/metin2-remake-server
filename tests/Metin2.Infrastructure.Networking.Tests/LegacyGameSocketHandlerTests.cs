@@ -17,21 +17,26 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyGameSocketHandlerTests
 {
     [TestMethod]
-    public async Task Handshake_then_token_login_receives_character_selection_batch()
+    public async Task Handshake_token_login_and_owned_character_select_reach_loading_phase()
     {
         using var cancellation = new CancellationTokenSource();
         var loginService = new RecordingGameLoginService();
-        var listService = new CharacterListService(new FixedCharacterListRepository([
+        CharacterListEntry[] entries =
+        [
             CreateCharacter(0, 101, "Warrior", 42, 1000, 2000),
             CreateCharacter(2, 202, "Sura", 35, 3000, 4000)
-        ]));
+        ];
+        var characterRepository = new FixedCharacterRepository(entries);
+        var listService = new CharacterListService(characterRepository);
         var selectionService = new CharacterSelectionService(new FixedEmpireRepository(2), listService);
+        var selectService = new CharacterSelectService(characterRepository);
         var handler = new LegacyGameSocketHandler(
             new ConstantTimeProvider(1_000),
             new FixedHandshakeTokenSource(0xAABBCCDD),
             new LegacySequenceProfile("test", new byte[] { 0xAA }),
             loginService,
             selectionService,
+            selectService,
             new FixedSelectionContextProvider(new LegacyCharacterSelectionWireContext(
                 0x01020304,
                 13000,
@@ -57,13 +62,13 @@ public sealed class LegacyGameSocketHandlerTests
         Assert.AreEqual((byte)0xFD, loginPhase[0]);
         Assert.AreEqual((byte)LegacyPhaseCode.Login, loginPhase[1]);
 
-        var packet = new TokenLogin("player", 0x11223344, new uint[] { 10, 20, 30, 40 });
-        var frame = new byte[53];
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, 0xAA, frame, out int written);
-        Assert.AreEqual(PacketFrameWriteStatus.Done, status);
-        Assert.AreEqual(frame.Length, written);
+        var login = new TokenLogin("player", 0x11223344, new uint[] { 10, 20, 30, 40 });
+        var loginFrame = new byte[53];
+        PacketFrameWriteStatus loginStatus = PacketFrameWriter.TryWrite(in login, 0xAA, loginFrame, out int loginWritten);
+        Assert.AreEqual(PacketFrameWriteStatus.Done, loginStatus);
+        Assert.AreEqual(loginFrame.Length, loginWritten);
 
-        await SendAllAsync(client, frame);
+        await SendAllAsync(client, loginFrame);
         GameLoginRequest request = await loginService.Request.Task.WaitAsync(TimeSpan.FromSeconds(2));
         byte[] selection = await ReceiveExactAsync(client, 334);
 
@@ -75,6 +80,18 @@ public sealed class LegacyGameSocketHandlerTests
         Assert.AreEqual((byte)0xFD, selection[3]);
         Assert.AreEqual((byte)LegacyPhaseCode.Select, selection[4]);
         Assert.AreEqual((byte)0x20, selection[5]);
+
+        var select = new SelectCharacter(0);
+        var selectFrame = new byte[3];
+        PacketFrameWriteStatus selectStatus = PacketFrameWriter.TryWrite(in select, 0xAA, selectFrame, out int selectWritten);
+        Assert.AreEqual(PacketFrameWriteStatus.Done, selectStatus);
+        Assert.AreEqual(selectFrame.Length, selectWritten);
+
+        await SendAllAsync(client, selectFrame);
+        byte[] loadingPhase = await ReceiveExactAsync(client, 2);
+        Assert.AreEqual((byte)0xFD, loadingPhase[0]);
+        Assert.AreEqual((byte)LegacyPhaseCode.Loading, loadingPhase[1]);
+        Assert.AreEqual(new CharacterId(101), characterRepository.LastSelectedCharacterId);
 
         client.Shutdown(SocketShutdown.Send);
         cancellation.Cancel();
@@ -146,12 +163,28 @@ public sealed class LegacyGameSocketHandlerTests
         }
     }
 
-    private sealed class FixedCharacterListRepository(IReadOnlyList<CharacterListEntry> entries) : ICharacterListRepository
+    private sealed class FixedCharacterRepository(IReadOnlyList<CharacterListEntry> entries)
+        : ICharacterListRepository, ICharacterSelectionRepository
     {
+        public CharacterId? LastSelectedCharacterId { get; private set; }
+
         public ValueTask<IReadOnlyList<CharacterListEntry>> GetByAccountAsync(
             AccountId accountId,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(entries);
+
+        public ValueTask<CharacterId?> FindOwnedCharacterIdAsync(
+            AccountId accountId,
+            byte slot,
+            CancellationToken cancellationToken = default)
+        {
+            CharacterId? match = entries
+                .Where(entry => entry.Slot == slot)
+                .Select(entry => (CharacterId?)entry.CharacterId)
+                .SingleOrDefault();
+            LastSelectedCharacterId = match;
+            return ValueTask.FromResult(match);
+        }
     }
 
     private sealed class FixedEmpireRepository(byte empire) : IAccountEmpireRepository
