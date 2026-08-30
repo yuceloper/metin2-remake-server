@@ -10,18 +10,22 @@ public sealed class GameConnectionDispatchTarget : IPacketDispatchTarget
     private readonly LegacyHandshakeDispatchTarget _handshake;
     private readonly GameTokenLoginDispatchTarget _login;
     private readonly GameCharacterSelectDispatchTarget _characterSelect;
+    private readonly GameEnterGameDispatchTarget _enterGame;
 
     public GameConnectionDispatchTarget(
         LegacyHandshakeDispatchTarget handshake,
         GameTokenLoginDispatchTarget login,
-        GameCharacterSelectDispatchTarget characterSelect)
+        GameCharacterSelectDispatchTarget characterSelect,
+        GameEnterGameDispatchTarget enterGame)
     {
         ArgumentNullException.ThrowIfNull(handshake);
         ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(characterSelect);
+        ArgumentNullException.ThrowIfNull(enterGame);
         _handshake = handshake;
         _login = login;
         _characterSelect = characterSelect;
+        _enterGame = enterGame;
     }
 
     public ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken) =>
@@ -32,6 +36,9 @@ public sealed class GameConnectionDispatchTarget : IPacketDispatchTarget
 
     public ValueTask HandleAsync(SelectCharacter packet, CancellationToken cancellationToken) =>
         _characterSelect.HandleAsync(packet, cancellationToken);
+
+    public ValueTask HandleAsync(EnterGame packet, CancellationToken cancellationToken) =>
+        _enterGame.HandleAsync(packet, cancellationToken);
 
     public ValueTask HandleAsync(LoginRequest packet, CancellationToken cancellationToken) => Unsupported(packet);
     public ValueTask HandleAsync(LoginFailed packet, CancellationToken cancellationToken) => Unsupported(packet);
