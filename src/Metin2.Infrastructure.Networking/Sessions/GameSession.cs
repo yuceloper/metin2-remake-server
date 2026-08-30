@@ -26,6 +26,8 @@ public sealed class GameSession
 
     public string? Username { get; private set; }
 
+    public CharacterId? SelectedCharacterId { get; private set; }
+
     public ReadOnlyMemory<uint> ClientSecurityKey => _clientSecurityKey ?? ReadOnlyMemory<uint>.Empty;
 
     public void TransitionTo(PacketPhase nextPhase)
@@ -58,5 +60,20 @@ public sealed class GameSession
         AccountId = accountId;
         Username = username;
         _clientSecurityKey = clientSecurityKey.ToArray();
+    }
+
+    public void SelectCharacter(CharacterId characterId)
+    {
+        if (!IsAuthenticated)
+        {
+            throw new InvalidOperationException("A character cannot be selected before authentication.");
+        }
+
+        if (SelectedCharacterId.HasValue)
+        {
+            throw new InvalidOperationException("A character is already selected for this session.");
+        }
+
+        SelectedCharacterId = characterId;
     }
 }
