@@ -2,6 +2,7 @@ using Metin2.Infrastructure.Persistence.Postgres.Auth;
 using Metin2.Infrastructure.Persistence.Postgres.Migrations;
 using Metin2.Infrastructure.Persistence.Postgres.Security;
 using Metin2.Modules.Auth.Application;
+using Metin2.Modules.Game.Application;
 using Metin2.Shared.Identity;
 using Npgsql;
 
@@ -77,6 +78,19 @@ public sealed class PostgresAuthTokenStoreIntegrationTests
 
         AuthTokenPrincipal? replay = await consumer.ConsumeAsync(token, username);
         Assert.IsNull(replay);
+
+        uint gameToken = await issuer.IssueAsync(accountId, username);
+        var gameLoginService = new GameLoginService(consumer);
+
+        GameLoginResult gameLogin = await gameLoginService.LoginAsync(
+            new GameLoginRequest(gameToken, " tokenplayer "));
+        Assert.IsTrue(gameLogin.IsSuccess);
+        Assert.AreEqual(accountId, gameLogin.AccountId);
+        Assert.AreEqual(username, gameLogin.Username);
+
+        GameLoginResult gameReplay = await gameLoginService.LoginAsync(
+            new GameLoginRequest(gameToken, username));
+        Assert.IsFalse(gameReplay.IsSuccess);
 
         var shortLivedIssuer = new PostgresAuthTokenIssuer(dataSource, TimeSpan.FromMilliseconds(20));
         uint expiringToken = await shortLivedIssuer.IssueAsync(accountId, username);
