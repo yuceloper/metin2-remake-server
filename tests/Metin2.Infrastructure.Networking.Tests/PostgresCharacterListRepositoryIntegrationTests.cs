@@ -12,7 +12,7 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
     private const string ConnectionStringEnvironmentVariable = "METIN2_TEST_POSTGRES_CONNECTION_STRING";
 
     [TestMethod]
-    public async Task Character_list_is_account_scoped_and_slot_ordered_against_live_postgres()
+    public async Task Selection_snapshot_is_account_scoped_and_slot_ordered_against_live_postgres()
     {
         string? connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -32,17 +32,23 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
             Assert.AreEqual(1L, Convert.ToInt64(await historyCommand.ExecuteScalarAsync()));
         }
 
-        long firstAccountId = await CreateAccountAsync(dataSource, "CharacterListA");
-        long secondAccountId = await CreateAccountAsync(dataSource, "CharacterListB");
+        long firstAccountId = await CreateAccountAsync(dataSource, "CharacterListA", empire: 2);
+        long secondAccountId = await CreateAccountAsync(dataSource, "CharacterListB", empire: 3);
 
         await InsertCharacterAsync(dataSource, firstAccountId, 2, "SecondSlot", 202, 2, 35, 600, 3000, 4000);
         await InsertCharacterAsync(dataSource, firstAccountId, 0, "FirstSlot", 101, 0, 42, 1200, 1000, 2000);
         await InsertCharacterAsync(dataSource, secondAccountId, 1, "OtherAccount", 303, 1, 20, 90, 5000, 6000);
 
-        var repository = new PostgresCharacterListRepository(dataSource);
-        var service = new CharacterListService(repository);
-        IReadOnlyList<CharacterListEntry> characters = await service.GetAsync(new AccountId(checked((uint)firstAccountId)));
+        var listRepository = new PostgresCharacterListRepository(dataSource);
+        var empireRepository = new PostgresAccountEmpireRepository(dataSource);
+        var listService = new CharacterListService(listRepository);
+        var selectionService = new CharacterSelectionService(empireRepository, listService);
 
+        CharacterSelectionSnapshot snapshot = await selectionService.GetAsync(
+            new AccountId(checked((uint)firstAccountId)));
+        IReadOnlyList<CharacterListEntry> characters = snapshot.Characters;
+
+        Assert.AreEqual((byte)2, snapshot.Empire);
         Assert.AreEqual(2, characters.Count);
         Assert.AreEqual((byte)0, characters[0].Slot);
         Assert.AreEqual(new CharacterId(101), characters[0].CharacterId);
@@ -58,7 +64,7 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
         Assert.AreEqual(string.Empty, characters[1].GuildName);
     }
 
-    private static async Task<long> CreateAccountAsync(NpgsqlDataSource dataSource, string username)
+    private static async Task<long> CreateAccountAsync(NpgsqlDataSource dataSource, string username, short empire)
     {
         string normalized = username.ToUpperInvariant();
         await using (NpgsqlCommand cleanup = dataSource.CreateCommand(
@@ -70,12 +76,13 @@ public sealed class PostgresCharacterListRepositoryIntegrationTests
 
         await using NpgsqlCommand insert = dataSource.CreateCommand(
             """
-            INSERT INTO accounts (username, username_normalized, password_hash, login_enabled)
-            VALUES ($1, $2, 'integration-test-hash', TRUE)
+            INSERT INTO accounts (username, username_normalized, password_hash, login_enabled, empire)
+            VALUES ($1, $2, 'integration-test-hash', TRUE, $3)
             RETURNING id;
             """);
         insert.Parameters.AddWithValue(username);
         insert.Parameters.AddWithValue(normalized);
+        insert.Parameters.AddWithValue(empire);
         return Convert.ToInt64(await insert.ExecuteScalarAsync());
     }
 
