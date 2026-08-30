@@ -1,0 +1,15 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Game/Packets/EnterGame.cs
+# - classic client UserInterface/Packet.h TPacketCGEnterFrontGame
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: EnterGame
+    opcode: 0x0A
+    direction: client_to_server
+    phase: loading
+    size: fixed
+    sequence: true
+    since: 1
+    fields: []
