@@ -1,0 +1,86 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Game/Packets/Characters.cs
+# - yuceloper/new-metin src/Executables/Game/Packets/Character.cs
+# - classic client UserInterface/Packet.h TSimplePlayerInformation / TPacketGCLoginSuccess4
+# Packing: #pragma pack(1)
+schema: 1
+protocol: legacy-metin2
+types:
+  - name: CharacterSummary
+    size: fixed
+    fields:
+      - name: id
+        type: u32le
+        domainType: CharacterId
+      - name: name
+        type: fixed_string
+        length: 25
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: class
+        type: u8
+      - name: level
+        type: u8
+      - name: playtime
+        type: u32le
+      - name: st
+        type: u8
+      - name: ht
+        type: u8
+      - name: dx
+        type: u8
+      - name: iq
+        type: u8
+      - name: body_part
+        type: u16le
+      - name: name_change
+        type: u8
+      - name: hair_part
+        type: u16le
+      - name: unknown
+        type: u32le
+      - name: position_x
+        type: i32le
+      - name: position_y
+        type: i32le
+      - name: ip
+        type: i32le
+      - name: port
+        type: u16le
+      - name: skill_group
+        type: u8
+packets:
+  - name: Characters
+    opcode: 0x20
+    direction: server_to_client
+    phase: select
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: character_list
+        type: array
+        length: 4
+        element:
+          type: CharacterSummary
+      - name: guild_ids
+        type: array
+        length: 4
+        element:
+          type: u32le
+          domainType: GuildId
+      - name: guild_names
+        type: array
+        length: 4
+        element:
+          type: fixed_string
+          length: 13
+          encoding: ascii
+          termination: "null"
+          trim: "null"
+      - name: handle
+        type: u32le
+      - name: random_key
+        type: u32le

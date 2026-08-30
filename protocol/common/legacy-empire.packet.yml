@@ -1,0 +1,15 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/Empire.cs
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: Empire
+    opcode: 0x5A
+    direction: bidirectional
+    phase: any
+    size: fixed
+    sequence: true
+    since: 1
+    fields:
+      - name: empire_id
+        type: u8

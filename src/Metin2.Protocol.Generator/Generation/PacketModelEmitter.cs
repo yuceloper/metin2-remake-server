@@ -43,10 +43,13 @@ internal static class PacketModelEmitter
         return $"public readonly partial record struct {packet.Name}(\n    {parameters})";
     }
 
-    internal static string GetMemberName(PacketDefinition packet, FieldDefinition field)
+    internal static string GetMemberName(PacketDefinition packet, FieldDefinition field) =>
+        GetMemberName(packet.Name, field);
+
+    internal static string GetMemberName(string ownerName, FieldDefinition field)
     {
         string candidate = ToPascalCase(field.Name);
-        return string.Equals(candidate, packet.Name, StringComparison.Ordinal)
+        return string.Equals(candidate, ownerName, StringComparison.Ordinal)
             ? candidate + "Value"
             : candidate;
     }
@@ -89,7 +92,7 @@ internal static class PacketModelEmitter
             "bool8" => "bool",
             "fixed_string" or "string" => "string",
             "bytes" => "global::System.ReadOnlyMemory<byte>",
-            _ => "global::System.ReadOnlyMemory<byte>"
+            _ => $"global::Metin2.Protocol.Generated.Types.{wireType}"
         };
     }
 

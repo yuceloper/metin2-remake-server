@@ -39,6 +39,13 @@ internal sealed class PacketDefinitionParser
 
     private static PacketDocument ToModel(PacketDocumentDto dto)
     {
+        var types = (dto.Types ?? new List<WireTypeDto>())
+            .Select(type => new WireTypeDefinition(
+                type.Name ?? string.Empty,
+                type.Size ?? string.Empty,
+                MapFields(type.Fields)))
+            .ToArray();
+
         var packets = (dto.Packets ?? new List<PacketDto>())
             .Select(packet => new PacketDefinition(
                 packet.Name ?? string.Empty,
@@ -49,34 +56,49 @@ internal sealed class PacketDefinitionParser
                 packet.Sequence,
                 packet.Since <= 0 ? 1 : packet.Since,
                 packet.Until,
-                (packet.Fields ?? new List<FieldDto>())
-                    .Select(field => new FieldDefinition(
-                        field.Name ?? string.Empty,
-                        field.Type ?? string.Empty,
-                        field.DomainType,
-                        field.Length,
-                        field.LengthFrom,
-                        field.LengthType,
-                        field.MaxLength,
-                        field.Encoding,
-                        field.Termination,
-                        field.Trim,
-                        field.Element is null
-                            ? null
-                            : new ElementDefinition(
-                                field.Element.Type ?? string.Empty,
-                                field.Element.DomainType)))
-                    .ToArray()))
+                MapFields(packet.Fields)))
             .ToArray();
 
-        return new PacketDocument(dto.Schema, dto.Protocol ?? string.Empty, packets);
+        return new PacketDocument(dto.Schema, dto.Protocol ?? string.Empty, types, packets);
     }
+
+    private static IReadOnlyList<FieldDefinition> MapFields(List<FieldDto>? fields) =>
+        (fields ?? new List<FieldDto>())
+        .Select(field => new FieldDefinition(
+            field.Name ?? string.Empty,
+            field.Type ?? string.Empty,
+            field.DomainType,
+            field.Length,
+            field.LengthFrom,
+            field.LengthType,
+            field.MaxLength,
+            field.Encoding,
+            field.Termination,
+            field.Trim,
+            field.Element is null
+                ? null
+                : new ElementDefinition(
+                    field.Element.Type ?? string.Empty,
+                    field.Element.DomainType,
+                    field.Element.Length,
+                    field.Element.Encoding,
+                    field.Element.Termination,
+                    field.Element.Trim)))
+        .ToArray();
 
     private sealed class PacketDocumentDto
     {
         public int Schema { get; set; }
         public string? Protocol { get; set; }
+        public List<WireTypeDto>? Types { get; set; }
         public List<PacketDto>? Packets { get; set; }
+    }
+
+    private sealed class WireTypeDto
+    {
+        public string? Name { get; set; }
+        public string? Size { get; set; }
+        public List<FieldDto>? Fields { get; set; }
     }
 
     private sealed class PacketDto
@@ -111,6 +133,10 @@ internal sealed class PacketDefinitionParser
     {
         public string? Type { get; set; }
         public string? DomainType { get; set; }
+        public int? Length { get; set; }
+        public string? Encoding { get; set; }
+        public string? Termination { get; set; }
+        public string? Trim { get; set; }
     }
 }
 

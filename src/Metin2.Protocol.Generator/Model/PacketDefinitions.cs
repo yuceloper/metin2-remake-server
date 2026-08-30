@@ -2,16 +2,36 @@ namespace Metin2.Protocol.Generator.Model;
 
 internal sealed class PacketDocument
 {
-    public PacketDocument(int schema, string protocol, IReadOnlyList<PacketDefinition> packets)
+    public PacketDocument(
+        int schema,
+        string protocol,
+        IReadOnlyList<WireTypeDefinition> types,
+        IReadOnlyList<PacketDefinition> packets)
     {
         Schema = schema;
         Protocol = protocol;
+        Types = types;
         Packets = packets;
     }
 
     public int Schema { get; }
     public string Protocol { get; }
+    public IReadOnlyList<WireTypeDefinition> Types { get; }
     public IReadOnlyList<PacketDefinition> Packets { get; }
+}
+
+internal sealed class WireTypeDefinition
+{
+    public WireTypeDefinition(string name, string size, IReadOnlyList<FieldDefinition> fields)
+    {
+        Name = name;
+        Size = size;
+        Fields = fields;
+    }
+
+    public string Name { get; }
+    public string Size { get; }
+    public IReadOnlyList<FieldDefinition> Fields { get; }
 }
 
 internal sealed class PacketDefinition
@@ -92,12 +112,26 @@ internal sealed class FieldDefinition
 
 internal sealed class ElementDefinition
 {
-    public ElementDefinition(string type, string? domainType)
+    public ElementDefinition(
+        string type,
+        string? domainType,
+        int? length,
+        string? encoding,
+        string? termination,
+        string? trim)
     {
         Type = type;
         DomainType = domainType;
+        Length = length;
+        Encoding = encoding;
+        Termination = termination;
+        Trim = trim;
     }
 
     public string Type { get; }
     public string? DomainType { get; }
+    public int? Length { get; }
+    public string? Encoding { get; }
+    public string? Termination { get; }
+    public string? Trim { get; }
 }
