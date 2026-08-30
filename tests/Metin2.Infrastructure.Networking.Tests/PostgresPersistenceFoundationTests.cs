@@ -16,7 +16,7 @@ public sealed class PostgresPersistenceFoundationTests
     [TestMethod]
     public void Initial_accounts_migration_is_embedded_and_discoverable()
     {
-        await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(
+        using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(
             "Host=127.0.0.1;Port=1;Database=unused;Username=unused;Password=unused;Timeout=1");
         var migrator = new PostgresMigrator(dataSource);
 
