@@ -4,5 +4,6 @@
     <ProjectReference Include="../Modules/Metin2.Modules.Auth/Metin2.Modules.Auth.csproj" />
     <ProjectReference Include="../Modules/Metin2.Modules.Game/Metin2.Modules.Game.csproj" />
     <ProjectReference Include="../Modules/Metin2.Modules.Characters/Metin2.Modules.Characters.csproj" />
+    <ProjectReference Include="../Modules/Metin2.Modules.World/Metin2.Modules.World.csproj" />
   </ItemGroup>
 </Project>

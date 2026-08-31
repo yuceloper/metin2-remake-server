@@ -6,8 +6,10 @@ using Metin2.Infrastructure.Networking.Receive;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
+using Metin2.Modules.World;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Legacy;
+using Metin2.Shared.Identity;
 
 namespace Metin2.Infrastructure.Networking.Game;
 
@@ -22,6 +24,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly CharacterBootstrapService _bootstrapService;
     private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
     private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
+    private readonly PlayerRuntimeRegistry _runtimeRegistry;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -32,7 +35,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         CharacterSelectService characterSelectService,
         CharacterBootstrapService bootstrapService,
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
-        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider)
+        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
+        PlayerRuntimeRegistry? runtimeRegistry = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -53,71 +57,40 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _bootstrapService = bootstrapService;
         _selectionWireContextProvider = selectionWireContextProvider;
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
+        _runtimeRegistry = runtimeRegistry ?? new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator());
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(socket);
 
-        var session = new GameSession(
-            PacketPhase.Handshake,
-            new LegacySequenceState(_sequenceProfile));
-
+        var session = new GameSession(PacketPhase.Handshake, new LegacySequenceState(_sequenceProfile));
         await using var connection = new SocketConnection(socket, session);
-        var handshakeTarget = new LegacyHandshakeDispatchTarget(
-            session,
-            connection.Output,
-            _timeProvider,
-            _handshakeTokenSource,
-            PacketPhase.Login);
-        var selectionPublisher = new LegacyCharacterSelectionPublisher(
-            connection.Output,
-            _selectionService,
-            _selectionWireContextProvider);
-        var loginTarget = new GameTokenLoginDispatchTarget(
-            session,
-            _loginService,
-            selectionPublisher);
-        var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(
-            connection.Output,
-            _bootstrapService,
-            _bootstrapRuntimeContextProvider);
-        var characterSelectTarget = new GameCharacterSelectDispatchTarget(
-            session,
-            connection.Output,
-            _characterSelectService,
-            bootstrapPublisher);
-        var target = new GameConnectionDispatchTarget(
-            handshakeTarget,
-            loginTarget,
-            characterSelectTarget);
+        var handshakeTarget = new LegacyHandshakeDispatchTarget(session, connection.Output, _timeProvider, _handshakeTokenSource, PacketPhase.Login);
+        var selectionPublisher = new LegacyCharacterSelectionPublisher(connection.Output, _selectionService, _selectionWireContextProvider);
+        var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
+        var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
+        var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
+        var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget, characterSelectTarget);
         var consumer = new TypedPacketFrameConsumer(target);
-
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
 
         try
         {
             await handshakeTarget.StartAsync(cancellationToken).ConfigureAwait(false);
-
-            _ = await connection.RunReceiveAsync(
-                PacketDirection.ClientToServer,
-                consumer,
-                cancellationToken).ConfigureAwait(false);
+            _ = await connection.RunReceiveAsync(PacketDirection.ClientToServer, consumer, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await connection.CompleteOutputAsync().ConfigureAwait(false);
+            if (session.ClearRuntimeEntity() is EntityId runtimeEntityId)
+            {
+                _runtimeRegistry.Release(runtimeEntityId);
+            }
 
-            try
-            {
-                _ = await sendPump.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-            }
-            catch (SocketException)
-            {
-            }
+            await connection.CompleteOutputAsync().ConfigureAwait(false);
+            try { _ = await sendPump.ConfigureAwait(false); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            catch (SocketException) { }
         }
     }
 }
