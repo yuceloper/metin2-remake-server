@@ -28,6 +28,8 @@ public sealed class GameSession
 
     public CharacterId? SelectedCharacterId { get; private set; }
 
+    public EntityId? RuntimeEntityId { get; private set; }
+
     public ReadOnlyMemory<uint> ClientSecurityKey => _clientSecurityKey ?? ReadOnlyMemory<uint>.Empty;
 
     public void TransitionTo(PacketPhase nextPhase)
@@ -75,5 +77,32 @@ public sealed class GameSession
         }
 
         SelectedCharacterId = characterId;
+    }
+
+    public void BindRuntimeEntity(EntityId entityId)
+    {
+        if (!SelectedCharacterId.HasValue)
+        {
+            throw new InvalidOperationException("A runtime entity cannot be bound before character selection.");
+        }
+
+        if (entityId.Value == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entityId), "Runtime entity id 0 is reserved.");
+        }
+
+        if (RuntimeEntityId.HasValue)
+        {
+            throw new InvalidOperationException("A runtime entity is already bound to this session.");
+        }
+
+        RuntimeEntityId = entityId;
+    }
+
+    public EntityId? ClearRuntimeEntity()
+    {
+        EntityId? previous = RuntimeEntityId;
+        RuntimeEntityId = null;
+        return previous;
     }
 }
