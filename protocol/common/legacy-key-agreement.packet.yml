@@ -1,0 +1,23 @@
+# Evidence status: reference-confirmed
+# References: classic packet.h TPacketKeyAgreement and DESC/CInputHandshake improved encryption path.
+# Compatibility with the exact target client remains to be verified.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: KeyAgreement
+    opcode: 0xFB
+    direction: bidirectional
+    phase: handshake
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: agreed_length
+        type: u16le
+      - name: data_length
+        type: u16le
+      - name: data
+        type: array
+        length: 256
+        element:
+          type: u8
