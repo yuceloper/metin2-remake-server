@@ -1,0 +1,19 @@
+# Evidence status: reference-confirmed
+# Reference: classic packet.h TPacketKeyAgreementCompleted.
+# Compatibility with the exact target client remains to be verified.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: KeyAgreementCompleted
+    opcode: 0xFA
+    direction: server_to_client
+    phase: handshake
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: data
+        type: array
+        length: 3
+        element:
+          type: u8
