@@ -74,7 +74,14 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
-        var enterGameTarget = new GameEnterGameDispatchTarget(session, connection.Output, _runtimeRegistry, _timeProvider, _channelNumber);
+        var enterGameTarget = new GameEnterGameDispatchTarget(
+            session,
+            connection.Output,
+            _runtimeRegistry,
+            _timeProvider,
+            _bootstrapService,
+            _bootstrapRuntimeContextProvider,
+            _channelNumber);
         var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget, characterSelectTarget, enterGameTarget);
         var consumer = new TypedPacketFrameConsumer(target);
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
