@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 using Metin2.Infrastructure.Networking.Game;
