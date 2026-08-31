@@ -7,11 +7,9 @@ public sealed class PlayerRuntimeRegistry(IEntityIdAllocator entityIdAllocator)
     private readonly object _gate = new();
     private readonly Dictionary<EntityId, PlayerRuntimeReservation> _byEntityId = new();
     private readonly Dictionary<CharacterId, EntityId> _byCharacterId = new();
+    private readonly HashSet<EntityId> _spawned = new();
 
-    public bool TryReserve(
-        CharacterId characterId,
-        Position position,
-        out PlayerRuntimeReservation reservation)
+    public bool TryReserve(CharacterId characterId, Position position, out PlayerRuntimeReservation reservation)
     {
         lock (_gate)
         {
@@ -36,6 +34,28 @@ public sealed class PlayerRuntimeRegistry(IEntityIdAllocator entityIdAllocator)
             _byEntityId.Add(entityId, reservation);
             _byCharacterId.Add(characterId, entityId);
             return true;
+        }
+    }
+
+    public bool TryPromoteToSpawned(EntityId entityId, CharacterId characterId)
+    {
+        lock (_gate)
+        {
+            if (!_byEntityId.TryGetValue(entityId, out PlayerRuntimeReservation reservation) ||
+                reservation.CharacterId != characterId)
+            {
+                return false;
+            }
+
+            return _spawned.Add(entityId);
+        }
+    }
+
+    public bool IsSpawned(EntityId entityId)
+    {
+        lock (_gate)
+        {
+            return _spawned.Contains(entityId);
         }
     }
 
@@ -70,6 +90,7 @@ public sealed class PlayerRuntimeRegistry(IEntityIdAllocator entityIdAllocator)
                 return false;
             }
 
+            _spawned.Remove(entityId);
             _byCharacterId.Remove(reservation.CharacterId);
             return true;
         }
