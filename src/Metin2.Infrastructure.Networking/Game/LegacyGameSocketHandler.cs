@@ -25,6 +25,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly ILegacyCharacterSelectionWireContextProvider _selectionWireContextProvider;
     private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
     private readonly PlayerRuntimeRegistry _runtimeRegistry;
+    private readonly byte _channelNumber;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -36,7 +37,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         CharacterBootstrapService bootstrapService,
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
-        PlayerRuntimeRegistry? runtimeRegistry = null)
+        PlayerRuntimeRegistry? runtimeRegistry = null,
+        byte channelNumber = 1)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -58,6 +60,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _selectionWireContextProvider = selectionWireContextProvider;
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
         _runtimeRegistry = runtimeRegistry ?? new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator());
+        _channelNumber = channelNumber;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
@@ -71,7 +74,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
-        var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget, characterSelectTarget);
+        var enterGameTarget = new GameEnterGameDispatchTarget(session, connection.Output, _runtimeRegistry, _timeProvider, _channelNumber);
+        var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget, characterSelectTarget, enterGameTarget);
         var consumer = new TypedPacketFrameConsumer(target);
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
 
