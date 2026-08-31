@@ -36,7 +36,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         CharacterBootstrapService bootstrapService,
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
-        PlayerRuntimeRegistry runtimeRegistry)
+        PlayerRuntimeRegistry? runtimeRegistry = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -47,7 +47,6 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ArgumentNullException.ThrowIfNull(bootstrapService);
         ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
         ArgumentNullException.ThrowIfNull(bootstrapRuntimeContextProvider);
-        ArgumentNullException.ThrowIfNull(runtimeRegistry);
 
         _timeProvider = timeProvider;
         _handshakeTokenSource = handshakeTokenSource;
@@ -58,7 +57,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _bootstrapService = bootstrapService;
         _selectionWireContextProvider = selectionWireContextProvider;
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
-        _runtimeRegistry = runtimeRegistry;
+        _runtimeRegistry = runtimeRegistry ?? new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator());
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
