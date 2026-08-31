@@ -1,0 +1,41 @@
+# Evidence status: reference-confirmed
+# References:
+# - yuceloper/new-metin src/Executables/Game/Packets/SpawnCharacter.cs
+# - classic ECharType: CHAR_TYPE_PC = 6
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: SpawnCharacter
+    opcode: 0x01
+    direction: server_to_client
+    phase: game
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: vid
+        type: u32le
+      - name: angle
+        type: f32le
+      - name: position_x
+        type: i32le
+      - name: position_y
+        type: i32le
+      - name: position_z
+        type: i32le
+      - name: character_type
+        type: u8
+      - name: class
+        type: u16le
+      - name: move_speed
+        type: u8
+      - name: attack_speed
+        type: u8
+      - name: state
+        type: u8
+      - name: affects
+        type: array
+        length: 2
+        element:
+          type: u32le

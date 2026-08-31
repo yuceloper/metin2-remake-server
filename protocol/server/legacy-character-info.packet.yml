@@ -1,0 +1,40 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/CharacterInfo.cs
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: CharacterInfo
+    opcode: 0x88
+    direction: server_to_client
+    phase: game
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: vid
+        type: u32le
+      - name: name
+        type: fixed_string
+        length: 25
+        encoding: ascii
+        termination: "null"
+        trim: "null"
+      - name: parts
+        type: array
+        length: 4
+        element:
+          type: u16le
+      - name: empire
+        type: u8
+      - name: guild_id
+        type: u32le
+        domainType: GuildId
+      - name: level
+        type: u32le
+      - name: rank_points
+        type: i16le
+      - name: pk_mode
+        type: u8
+      - name: mount_vnum
+        type: u32le

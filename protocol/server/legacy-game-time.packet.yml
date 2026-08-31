@@ -1,0 +1,16 @@
+# Evidence status: reference-confirmed
+# Reference: yuceloper/new-metin src/Executables/Game/Packets/GameTime.cs
+# Final compatibility must still be verified against the exact target client/capture.
+schema: 1
+protocol: legacy-metin2
+packets:
+  - name: GameTime
+    opcode: 0x6A
+    direction: server_to_client
+    phase: game
+    size: fixed
+    sequence: false
+    since: 1
+    fields:
+      - name: time
+        type: u32le

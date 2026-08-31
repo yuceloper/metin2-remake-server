@@ -18,7 +18,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyGameSocketHandlerTests
 {
     [TestMethod]
-    public async Task Handshake_login_select_and_bootstrap_flow_over_one_tcp_connection()
+    public async Task Handshake_login_select_bootstrap_and_enter_game_flow_over_one_tcp_connection()
     {
         using var cancellation = new CancellationTokenSource();
         var loginService = new RecordingGameLoginService();
@@ -147,6 +147,29 @@ public sealed class LegacyGameSocketHandlerTests
         Assert.AreEqual(12u, ReadPoint(bootstrap, pointPayloadOffset, 14));
         Assert.AreEqual(13u, ReadPoint(bootstrap, pointPayloadOffset, 15));
         Assert.AreEqual(7u, ReadPoint(bootstrap, pointPayloadOffset, 26));
+
+        uint bootstrapVid = BinaryPrimitives.ReadUInt32LittleEndian(bootstrap.AsSpan(1, sizeof(uint)));
+        Assert.AreNotEqual(0u, bootstrapVid);
+
+        var enterGame = new EnterGame();
+        var enterGameFrame = new byte[2];
+        PacketFrameWriteStatus enterStatus = PacketFrameWriter.TryWrite(in enterGame, 0xAA, enterGameFrame, out int enterWritten);
+        Assert.AreEqual(PacketFrameWriteStatus.Done, enterStatus);
+        Assert.AreEqual(enterGameFrame.Length, enterWritten);
+
+        await SendAllAsync(client, enterGameFrame);
+        byte[] gameEntry = await ReceiveExactAsync(client, 98);
+
+        Assert.AreEqual((byte)0xFD, gameEntry[0]);
+        Assert.AreEqual((byte)LegacyPhaseCode.Game, gameEntry[1]);
+        Assert.AreEqual((byte)0x6A, gameEntry[2]);
+        Assert.AreEqual(1_000u, BinaryPrimitives.ReadUInt32LittleEndian(gameEntry.AsSpan(3, sizeof(uint))));
+        Assert.AreEqual((byte)0x79, gameEntry[7]);
+        Assert.AreEqual((byte)1, gameEntry[8]);
+        Assert.AreEqual((byte)0x01, gameEntry[9]);
+        Assert.AreEqual(bootstrapVid, BinaryPrimitives.ReadUInt32LittleEndian(gameEntry.AsSpan(10, sizeof(uint))));
+        Assert.AreEqual((byte)0x88, gameEntry[44]);
+        Assert.AreEqual(bootstrapVid, BinaryPrimitives.ReadUInt32LittleEndian(gameEntry.AsSpan(45, sizeof(uint))));
 
         client.Shutdown(SocketShutdown.Send);
         cancellation.Cancel();
