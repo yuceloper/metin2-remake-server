@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
@@ -24,7 +25,7 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
     private const int PhaseFrameSize = 2;
 
     private readonly GameSession _session;
-    private readonly PipeWriter _output;
+    private readonly LegacyPacketOutput _output;
     private readonly IServerTimeProvider _timeProvider;
     private readonly LegacyHandshakeState _state;
     private readonly PacketPhase _nextPhase;
@@ -33,6 +34,17 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
     public LegacyHandshakeDispatchTarget(
         GameSession session,
         PipeWriter output,
+        IServerTimeProvider timeProvider,
+        IHandshakeTokenSource tokenSource,
+        PacketPhase nextPhase,
+        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null)
+        : this(session, new LegacyPacketOutput(output, session), timeProvider, tokenSource, nextPhase, onCompleted)
+    {
+    }
+
+    public LegacyHandshakeDispatchTarget(
+        GameSession session,
+        LegacyPacketOutput output,
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource tokenSource,
         PacketPhase nextPhase,
@@ -104,38 +116,29 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
 
     private async ValueTask WriteHandshakeAsync(HandshakePacket packet, CancellationToken cancellationToken)
     {
-        Memory<byte> memory = _output.GetMemory(HandshakeFrameSize);
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        Span<byte> frame = stackalloc byte[HandshakeFrameSize];
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, frame, out int written);
         if (status != PacketFrameWriteStatus.Done || written != HandshakeFrameSize)
         {
             throw new InvalidOperationException($"Handshake frame could not be written: {status} ({written} bytes).");
         }
 
-        _output.Advance(written);
-        await FlushOutputAsync(cancellationToken).ConfigureAwait(false);
+        _output.Write(frame[..written]);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask WritePhaseAsync(LegacyPhaseCode phaseCode, CancellationToken cancellationToken)
     {
         var packet = new Phase((byte)phaseCode);
-        Memory<byte> memory = _output.GetMemory(PhaseFrameSize);
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        Span<byte> frame = stackalloc byte[PhaseFrameSize];
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, frame, out int written);
         if (status != PacketFrameWriteStatus.Done || written != PhaseFrameSize)
         {
             throw new InvalidOperationException($"Phase frame could not be written: {status} ({written} bytes).");
         }
 
-        _output.Advance(written);
-        await FlushOutputAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async ValueTask FlushOutputAsync(CancellationToken cancellationToken)
-    {
-        FlushResult flush = await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
-        if (flush.IsCanceled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
+        _output.Write(frame[..written]);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static LegacyPhaseCode MapWirePhase(PacketPhase phase) =>
