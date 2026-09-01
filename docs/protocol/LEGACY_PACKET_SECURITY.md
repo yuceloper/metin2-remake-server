@@ -35,7 +35,7 @@ Classic phase transition behavior is significant:
 On Login2, classic server `SetSecurityKey(clientKey)` does:
 
 - copy the 4 DWORD client key as the server **decryption key**,
-- derive the server **encryption key** by TEA-encrypting those 16 client-key bytes with locale-specific 16-byte derivation material.
+- derive the server **encryption key** by running those 16 client-key bytes through the classic Metin2 `TEA_Encrypt` API with locale-specific 16-byte derivation material.
 
 This creates two distinct classic-key stages:
 
@@ -49,23 +49,59 @@ Plaintext handshake
 
 `LegacyTeaSecurityState` models these stages explicitly.
 
-## TEA primitive
+## The `TEA_Encrypt` naming trap
 
-The classic code path uses TEA (`TEA_Encrypt` / `TEA_Decrypt`), not XTEA, with:
+The original-compatible `libthecore/tea.cpp` exports functions named `TEA_Encrypt` and `TEA_Decrypt`, but the underlying 32-round block routine is **not the conventional TEA round function**.
 
-- 64-bit blocks,
+The source uses XTEA-style key scheduling:
+
+```text
+y += (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[sum & 3])
+sum += 0x9E3779B9
+z += (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(sum >> 11) & 3])
+```
+
+for 32 rounds. Decryption reverses those same operations.
+
+The bulk wrapper invokes `tea_code(src[1], src[0], ...)`; the block function then initializes `y = sy` and `z = sz`, so the logical wire word order remains the two little-endian `uint32` words in source order.
+
+`LegacyTeaCipher` deliberately retains the historical `Tea` name because it models the Metin2 API/transport contract, while its implementation follows the source's XTEA-style round semantics exactly.
+
+## Bulk/padding semantics
+
+The original bulk functions establish the following behavior:
+
+- 64-bit (8-byte) blocks,
 - 128-bit keys,
 - 32 rounds,
 - 32-bit little-endian words,
-- delta `0x9E3779B9`.
+- delta `0x9E3779B9`,
+- plaintext whose size is not divisible by 8 is zero-filled to the next 8-byte boundary before encryption,
+- `TEA_Encrypt` returns that rounded encrypted byte count,
+- `TEA_Decrypt` processes/returns the rounded block byte count,
+- the cipher layer does **not** encode or recover the original unpadded plaintext length.
 
-The networking source processes encrypted receive data only in complete 8-byte blocks and allows encrypted output to expand to the next block boundary.
+Therefore packet framing supplies the meaningful plaintext frame length; zero bytes at the end of a decrypted encrypted block are transport padding, not packet fields.
 
-`LegacyTeaCipher` contains the allocation-free block primitive and fixed buffer helpers. Before binding it into live socket pumps, the exact legacy buffer/padding semantics and client-side transform boundary must remain verified against the target build.
+Encrypted receive processing in classic server source only works on complete 8-byte ciphertext blocks. Partial trailing ciphertext remains buffered until another socket read completes the block.
+
+## Enqueue-time output semantics
+
+Classic encryption is applied when individual packets are queued, not later when the socket happens to flush them. This matters across key transitions and for padding.
+
+For example three plaintext frames of lengths `3`, `2`, and `329` are encrypted as three independent records:
+
+```text
+8 + 8 + 336 = 352 ciphertext bytes
+```
+
+Encrypting their concatenated 334-byte plaintext as one buffer would produce 336 bytes and is wire-incompatible.
+
+`LegacyPacketOutput` therefore encrypts each complete wire frame independently using the key stage active at enqueue time.
 
 ## 40250 caution
 
-The inspected 40250 test-client `EterLib/NetStream.cpp` contains the old direct TEA code path as commented/obsolete code around `CNetworkStream::Send`. This is consistent with that build using the improved packet-encryption path rather than classic TEA.
+The inspected 40250 test-client `EterLib/NetStream.cpp` contains the old direct classic-TEA path as commented/obsolete code around `CNetworkStream::Send`. This is consistent with that build using the improved packet-encryption path rather than classic TEA.
 
 Therefore:
 
