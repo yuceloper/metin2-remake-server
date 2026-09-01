@@ -6,4 +6,7 @@
     <ProjectReference Include="../Modules/Metin2.Modules.Characters/Metin2.Modules.Characters.csproj" />
     <ProjectReference Include="../Modules/Metin2.Modules.World/Metin2.Modules.World.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+  </ItemGroup>
 </Project>
