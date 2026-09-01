@@ -1,5 +1,7 @@
 using System.IO.Pipelines;
 using System.Net.Sockets;
+using Metin2.Infrastructure.Networking.Security;
+using Metin2.Infrastructure.Networking.Sessions;
 
 namespace Metin2.Infrastructure.Networking.Transport;
 
@@ -10,6 +12,7 @@ public static class SocketReceivePump
     public static async ValueTask<long> RunAsync(
         Socket socket,
         PipeWriter destination,
+        GameSession? session = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(socket);
@@ -31,6 +34,12 @@ public static class SocketReceivePump
                 if (received == 0)
                 {
                     break;
+                }
+
+                ImprovedPacketSecuritySession? improved = session?.ImprovedSecuritySession;
+                if (improved is { IsActive: true })
+                {
+                    improved.DecryptInbound(memory.Span[..received]);
                 }
 
                 destination.Advance(received);
