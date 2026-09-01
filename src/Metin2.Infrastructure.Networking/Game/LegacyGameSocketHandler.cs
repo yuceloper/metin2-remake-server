@@ -3,6 +3,7 @@ using Metin2.Infrastructure.Networking.Connections;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Networking.Receive;
+using Metin2.Infrastructure.Networking.Security;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
@@ -26,6 +27,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
     private readonly PlayerRuntimeRegistry _runtimeRegistry;
     private readonly byte _channelNumber;
+    private readonly LegacyTeaSecurityProfile? _teaSecurityProfile;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -38,7 +40,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
         PlayerRuntimeRegistry? runtimeRegistry = null,
-        byte channelNumber = 1)
+        byte channelNumber = 1,
+        LegacyTeaSecurityProfile? teaSecurityProfile = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -61,6 +64,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
         _runtimeRegistry = runtimeRegistry ?? new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator());
         _channelNumber = channelNumber;
+        _teaSecurityProfile = teaSecurityProfile;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
@@ -69,9 +73,21 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
 
         var session = new GameSession(PacketPhase.Handshake, new LegacySequenceState(_sequenceProfile));
         await using var connection = new SocketConnection(socket, session);
-        var handshakeTarget = new LegacyHandshakeDispatchTarget(session, connection.Output, _timeProvider, _handshakeTokenSource, PacketPhase.Login);
+        var handshakeTarget = new LegacyHandshakeDispatchTarget(
+            session,
+            connection.Output,
+            _timeProvider,
+            _handshakeTokenSource,
+            PacketPhase.Login,
+            _teaSecurityProfile is null
+                ? null
+                : (completedSession, _) =>
+                {
+                    completedSession.ConfigureClassicTeaSecurity(_teaSecurityProfile);
+                    return ValueTask.CompletedTask;
+                });
         var selectionPublisher = new LegacyCharacterSelectionPublisher(connection.Output, _selectionService, _selectionWireContextProvider);
-        var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
+        var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher, _teaSecurityProfile);
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
         var enterGameTarget = new GameEnterGameDispatchTarget(
