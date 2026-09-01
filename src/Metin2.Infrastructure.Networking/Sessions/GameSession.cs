@@ -24,6 +24,7 @@ public sealed class GameSession
     public LegacySequenceState? SequenceState { get; private set; }
     public LegacyClientCompatibilityProfile? CompatibilityProfile { get; }
     public LegacyTeaSecurityState? TeaSecurityState { get; private set; }
+    public ImprovedPacketSecuritySession? ImprovedSecuritySession { get; private set; }
     public bool IsAuthenticated => AccountId.HasValue;
     public AccountId? AccountId { get; private set; }
     public string? Username { get; private set; }
@@ -41,6 +42,20 @@ public sealed class GameSession
 
     public void ClearSequence() => SequenceState = null;
 
+    public void ConfigureImprovedSecurity(ImprovedPacketSecuritySession securitySession)
+    {
+        ArgumentNullException.ThrowIfNull(securitySession);
+        if (CompatibilityProfile?.EncryptionMode != LegacyPacketEncryptionMode.ImprovedPacketEncryption)
+        {
+            throw new InvalidOperationException("Improved packet security requires an improved-encryption compatibility profile.");
+        }
+        if (ImprovedSecuritySession is not null)
+        {
+            throw new InvalidOperationException("Improved packet security is already configured for this session.");
+        }
+        ImprovedSecuritySession = securitySession;
+    }
+
     public void ActivateConfiguredPacketSecurity()
     {
         if (CompatibilityProfile is null || CompatibilityProfile.EncryptionMode == LegacyPacketEncryptionMode.None)
@@ -50,7 +65,8 @@ public sealed class GameSession
 
         if (CompatibilityProfile.EncryptionMode == LegacyPacketEncryptionMode.ImprovedPacketEncryption)
         {
-            throw new NotSupportedException("Improved packet encryption is not implemented yet.");
+            throw new InvalidOperationException(
+                "Improved packet encryption activates only after key-agreement completion has been flushed.");
         }
 
         LegacyTeaSecurityProfile profile = CompatibilityProfile.ClassicTea
@@ -69,7 +85,7 @@ public sealed class GameSession
 
         if (CompatibilityProfile.EncryptionMode == LegacyPacketEncryptionMode.ImprovedPacketEncryption)
         {
-            throw new NotSupportedException("Improved packet encryption is not implemented yet.");
+            return;
         }
 
         LegacyTeaSecurityProfile profile = CompatibilityProfile.ClassicTea
