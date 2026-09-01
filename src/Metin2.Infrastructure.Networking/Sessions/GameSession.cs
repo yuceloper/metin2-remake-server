@@ -1,3 +1,4 @@
+using Metin2.Infrastructure.Networking.Security;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Legacy;
 using Metin2.Shared.Identity;
@@ -10,15 +11,19 @@ public sealed class GameSession
 
     public GameSession(
         PacketPhase initialPhase = PacketPhase.Handshake,
-        LegacySequenceState? sequenceState = null)
+        LegacySequenceState? sequenceState = null,
+        LegacyTeaSecurityState? teaSecurityState = null)
     {
         Phase = initialPhase;
         SequenceState = sequenceState;
+        TeaSecurityState = teaSecurityState;
     }
 
     public PacketPhase Phase { get; private set; }
 
     public LegacySequenceState? SequenceState { get; private set; }
+
+    public LegacyTeaSecurityState? TeaSecurityState { get; private set; }
 
     public bool IsAuthenticated => AccountId.HasValue;
 
@@ -44,6 +49,27 @@ public sealed class GameSession
     }
 
     public void ClearSequence() => SequenceState = null;
+
+    public void ConfigureClassicTeaSecurity(LegacyTeaSecurityProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (TeaSecurityState is not null)
+        {
+            throw new InvalidOperationException("Legacy TEA security is already configured for this session.");
+        }
+
+        var state = new LegacyTeaSecurityState();
+        state.ActivateInitial(profile);
+        TeaSecurityState = state;
+    }
+
+    public void RotateClassicTeaSecurity(ReadOnlySpan<uint> clientSecurityKey, LegacyTeaSecurityProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        LegacyTeaSecurityState state = TeaSecurityState
+            ?? throw new InvalidOperationException("Legacy TEA security must be configured before client key rotation.");
+        state.RotateFromClientKey(clientSecurityKey, profile);
+    }
 
     public void Authenticate(AccountId accountId, string username, ReadOnlySpan<uint> clientSecurityKey)
     {
