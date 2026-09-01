@@ -21,7 +21,7 @@ public sealed class BouncyCastleImprovedCipherProvider : IImprovedCipherProvider
     private const int CryptoPpRc5DefaultRounds = 16;
 
     public bool Supports(ImprovedBlockCipherAlgorithm algorithm) =>
-        algorithm != ImprovedBlockCipherAlgorithm.Mars;
+        algorithm is not ImprovedBlockCipherAlgorithm.Mars and not ImprovedBlockCipherAlgorithm.Shacal2;
 
     public IImprovedCipherTransform Create(in ImprovedCipherMaterial material)
     {
@@ -65,11 +65,13 @@ public sealed class BouncyCastleImprovedCipherProvider : IImprovedCipherProvider
             ImprovedBlockCipherAlgorithm.Rc5 => new RC532Engine(),
             ImprovedBlockCipherAlgorithm.Blowfish => new BlowfishEngine(),
             ImprovedBlockCipherAlgorithm.Tea => new TeaEngine(),
-            ImprovedBlockCipherAlgorithm.Shacal2 => new Shacal2Engine(),
-            ImprovedBlockCipherAlgorithm.Mars => throw new NotSupportedException(
-                "MARS is part of the original Crypto++ selector but is not available in BouncyCastle.Cryptography."),
+            ImprovedBlockCipherAlgorithm.Mars => throw Unsupported(algorithm),
+            ImprovedBlockCipherAlgorithm.Shacal2 => throw Unsupported(algorithm),
             _ => throw new ArgumentOutOfRangeException(nameof(algorithm), algorithm, "Unknown improved cipher algorithm.")
         };
+
+    private static NotSupportedException Unsupported(ImprovedBlockCipherAlgorithm algorithm) =>
+        new($"{algorithm} is part of the original Crypto++ selector but has no verified BouncyCastle.Cryptography implementation.");
 
     private sealed class BouncyCastleCtrTransform : IImprovedCipherTransform
     {
