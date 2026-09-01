@@ -102,12 +102,13 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
                 new ImprovedDh2KeyAgreement(),
                 cipherProvider);
             session.ConfigureImprovedSecurity(improvedSecurity);
-            improvedKeyAgreementTarget = new ImprovedKeyAgreementDispatchTarget(
+            var improvedTarget = new ImprovedKeyAgreementDispatchTarget(
                 session,
                 packetOutput,
                 improvedSecurity,
                 PacketPhase.Login);
-            handshakeCompleted = (_, ct) => improvedKeyAgreementTarget.StartAsync(ct);
+            improvedKeyAgreementTarget = improvedTarget;
+            handshakeCompleted = (_, ct) => improvedTarget.StartAsync(ct);
             deferPostHandshakePhase = true;
         }
         else if (_compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ClassicTea)
