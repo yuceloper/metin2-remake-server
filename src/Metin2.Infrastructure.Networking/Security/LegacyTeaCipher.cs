@@ -71,8 +71,6 @@ public static class LegacyTeaCipher
             DecryptBlock(output.Slice(offset, BlockSize), key);
         }
 
-        // Original TEA_Decrypt returns the rounded block size; the cipher layer does not
-        // carry the unpadded plaintext length.
         return ciphertext.Length;
     }
 
@@ -81,8 +79,6 @@ public static class LegacyTeaCipher
         ValidateBlock(block);
         ValidateKey(key);
 
-        // Original call site is tea_code(src[1], src[0], ...), while tea_code initializes
-        // y = sy and z = sz. Therefore the logical little-endian word order remains [0], [1].
         uint y = BinaryPrimitives.ReadUInt32LittleEndian(block);
         uint z = BinaryPrimitives.ReadUInt32LittleEndian(block[sizeof(uint)..]);
         uint sum = 0;
@@ -91,9 +87,9 @@ public static class LegacyTeaCipher
         {
             for (int i = 0; i < Rounds; i++)
             {
-                y += (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[sum & 3]);
+                y += (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[(int)(sum & 3u)]);
                 sum += Delta;
-                z += (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(sum >> 11) & 3]);
+                z += (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(int)((sum >> 11) & 3u)]);
             }
         }
 
@@ -114,9 +110,9 @@ public static class LegacyTeaCipher
         {
             for (int i = 0; i < Rounds; i++)
             {
-                z -= (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(sum >> 11) & 3]);
+                z -= (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(int)((sum >> 11) & 3u)]);
                 sum -= Delta;
-                y -= (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[sum & 3]);
+                y -= (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[(int)(sum & 3u)]);
             }
         }
 
