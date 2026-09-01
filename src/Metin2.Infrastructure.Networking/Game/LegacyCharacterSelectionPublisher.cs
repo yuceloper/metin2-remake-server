@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Protocol.Generated;
@@ -14,15 +15,36 @@ public interface ILegacyCharacterSelectionPublisher
     ValueTask PublishAsync(GameSession session, CancellationToken cancellationToken = default);
 }
 
-public sealed class LegacyCharacterSelectionPublisher(
-    PipeWriter output,
-    CharacterSelectionService selectionService,
-    ILegacyCharacterSelectionWireContextProvider contextProvider) : ILegacyCharacterSelectionPublisher
+public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectionPublisher
 {
     private const int EmpireFrameSize = 1 + EmpireCodec.PayloadSize + 1;
     private const int PhaseFrameSize = 1 + PhaseCodec.PayloadSize;
     private const int CharactersFrameSize = 1 + CharactersCodec.PayloadSize;
-    private const int TotalFrameSize = EmpireFrameSize + PhaseFrameSize + CharactersFrameSize;
+
+    private readonly LegacyPacketOutput _output;
+    private readonly CharacterSelectionService _selectionService;
+    private readonly ILegacyCharacterSelectionWireContextProvider _contextProvider;
+
+    public LegacyCharacterSelectionPublisher(
+        PipeWriter output,
+        CharacterSelectionService selectionService,
+        ILegacyCharacterSelectionWireContextProvider contextProvider)
+        : this(new LegacyPacketOutput(output), selectionService, contextProvider)
+    {
+    }
+
+    public LegacyCharacterSelectionPublisher(
+        LegacyPacketOutput output,
+        CharacterSelectionService selectionService,
+        ILegacyCharacterSelectionWireContextProvider contextProvider)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(selectionService);
+        ArgumentNullException.ThrowIfNull(contextProvider);
+        _output = output;
+        _selectionService = selectionService;
+        _contextProvider = contextProvider;
+    }
 
     public async ValueTask PublishAsync(GameSession session, CancellationToken cancellationToken = default)
     {
@@ -33,10 +55,10 @@ public sealed class LegacyCharacterSelectionPublisher(
             throw new InvalidOperationException("Character selection cannot be published before Game authentication.");
         }
 
-        CharacterSelectionSnapshot snapshot = await selectionService
+        CharacterSelectionSnapshot snapshot = await _selectionService
             .GetAsync(accountId, cancellationToken)
             .ConfigureAwait(false);
-        LegacyCharacterSelectionWireContext context = contextProvider.Get(session);
+        LegacyCharacterSelectionWireContext context = _contextProvider.Get(session);
 
         CharacterSummary[] summaries = new CharacterSummary[4];
         GuildId[] guildIds = new GuildId[4];
@@ -70,59 +92,32 @@ public sealed class LegacyCharacterSelectionPublisher(
 
         var empire = new Empire(snapshot.Empire);
         var phase = new Phase((byte)LegacyPhaseCode.Select);
-        var characters = new Characters(
-            summaries,
-            guildIds,
-            guildNames,
-            context.Handle,
-            context.RandomKey);
+        var characters = new Characters(summaries, guildIds, guildNames, context.Handle, context.RandomKey);
 
-        Memory<byte> memory = output.GetMemory(TotalFrameSize);
-        Span<byte> destination = memory.Span;
-        int offset = 0;
-
+        Span<byte> empireFrame = stackalloc byte[EmpireFrameSize];
         PacketFrameWriteStatus empireStatus = PacketFrameWriter.TryWrite(
             in empire,
             context.EmpireSequence,
-            destination[offset..],
+            empireFrame,
             out int empireWritten);
         EnsureWritten(nameof(Empire), empireStatus, empireWritten, EmpireFrameSize);
-        offset += empireWritten;
+        _output.Write(empireFrame[..empireWritten]);
 
-        PacketFrameWriteStatus phaseStatus = PacketFrameWriter.TryWrite(
-            in phase,
-            destination[offset..],
-            out int phaseWritten);
+        Span<byte> phaseFrame = stackalloc byte[PhaseFrameSize];
+        PacketFrameWriteStatus phaseStatus = PacketFrameWriter.TryWrite(in phase, phaseFrame, out int phaseWritten);
         EnsureWritten(nameof(Phase), phaseStatus, phaseWritten, PhaseFrameSize);
-        offset += phaseWritten;
+        _output.Write(phaseFrame[..phaseWritten]);
 
-        PacketFrameWriteStatus charactersStatus = PacketFrameWriter.TryWrite(
-            in characters,
-            destination[offset..],
-            out int charactersWritten);
+        Span<byte> charactersFrame = stackalloc byte[CharactersFrameSize];
+        PacketFrameWriteStatus charactersStatus = PacketFrameWriter.TryWrite(in characters, charactersFrame, out int charactersWritten);
         EnsureWritten(nameof(Characters), charactersStatus, charactersWritten, CharactersFrameSize);
-        offset += charactersWritten;
+        _output.Write(charactersFrame[..charactersWritten]);
 
-        if (offset != TotalFrameSize)
-        {
-            throw new InvalidOperationException($"Character selection batch size mismatch: {offset} != {TotalFrameSize}.");
-        }
-
-        output.Advance(offset);
-        FlushResult flush = await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-        if (flush.IsCanceled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
-
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
         session.TransitionTo(PacketPhase.Select);
     }
 
-    private static void EnsureWritten(
-        string packetName,
-        PacketFrameWriteStatus status,
-        int written,
-        int expectedSize)
+    private static void EnsureWritten(string packetName, PacketFrameWriteStatus status, int written, int expectedSize)
     {
         if (status != PacketFrameWriteStatus.Done || written != expectedSize)
         {
