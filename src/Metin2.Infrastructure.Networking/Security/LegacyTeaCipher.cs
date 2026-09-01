@@ -2,6 +2,10 @@ using System.Buffers.Binary;
 
 namespace Metin2.Infrastructure.Networking.Security;
 
+/// <summary>
+/// Implements the classic Metin2 libthecore `TEA_Encrypt` / `TEA_Decrypt` wire primitive.
+/// Despite the exported TEA name, the original block routine uses XTEA-style key scheduling.
+/// </summary>
 public static class LegacyTeaCipher
 {
     public const int BlockSize = 8;
@@ -29,7 +33,7 @@ public static class LegacyTeaCipher
         int encryptedSize = GetEncryptedSize(plaintext.Length);
         if (destination.Length < encryptedSize)
         {
-            throw new ArgumentException("Destination is too small for padded TEA output.", nameof(destination));
+            throw new ArgumentException("Destination is too small for padded Metin2 TEA output.", nameof(destination));
         }
 
         Span<byte> output = destination[..encryptedSize];
@@ -52,12 +56,12 @@ public static class LegacyTeaCipher
         ValidateKey(key);
         if ((ciphertext.Length & (BlockSize - 1)) != 0)
         {
-            throw new ArgumentException("Legacy TEA ciphertext must contain complete 8-byte blocks.", nameof(ciphertext));
+            throw new ArgumentException("Classic Metin2 ciphertext must contain complete 8-byte blocks.", nameof(ciphertext));
         }
 
         if (destination.Length < ciphertext.Length)
         {
-            throw new ArgumentException("Destination is too small for TEA plaintext.", nameof(destination));
+            throw new ArgumentException("Destination is too small for decrypted Metin2 blocks.", nameof(destination));
         }
 
         ciphertext.CopyTo(destination);
@@ -67,6 +71,8 @@ public static class LegacyTeaCipher
             DecryptBlock(output.Slice(offset, BlockSize), key);
         }
 
+        // Original TEA_Decrypt returns the rounded block size; the cipher layer does not
+        // carry the unpadded plaintext length.
         return ciphertext.Length;
     }
 
@@ -75,22 +81,24 @@ public static class LegacyTeaCipher
         ValidateBlock(block);
         ValidateKey(key);
 
-        uint v0 = BinaryPrimitives.ReadUInt32LittleEndian(block);
-        uint v1 = BinaryPrimitives.ReadUInt32LittleEndian(block[sizeof(uint)..]);
+        // Original call site is tea_code(src[1], src[0], ...), while tea_code initializes
+        // y = sy and z = sz. Therefore the logical little-endian word order remains [0], [1].
+        uint y = BinaryPrimitives.ReadUInt32LittleEndian(block);
+        uint z = BinaryPrimitives.ReadUInt32LittleEndian(block[sizeof(uint)..]);
         uint sum = 0;
 
         unchecked
         {
             for (int i = 0; i < Rounds; i++)
             {
+                y += (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[sum & 3]);
                 sum += Delta;
-                v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
-                v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+                z += (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(sum >> 11) & 3]);
             }
         }
 
-        BinaryPrimitives.WriteUInt32LittleEndian(block, v0);
-        BinaryPrimitives.WriteUInt32LittleEndian(block[sizeof(uint)..], v1);
+        BinaryPrimitives.WriteUInt32LittleEndian(block, y);
+        BinaryPrimitives.WriteUInt32LittleEndian(block[sizeof(uint)..], z);
     }
 
     public static void DecryptBlock(Span<byte> block, ReadOnlySpan<uint> key)
@@ -98,29 +106,29 @@ public static class LegacyTeaCipher
         ValidateBlock(block);
         ValidateKey(key);
 
-        uint v0 = BinaryPrimitives.ReadUInt32LittleEndian(block);
-        uint v1 = BinaryPrimitives.ReadUInt32LittleEndian(block[sizeof(uint)..]);
+        uint y = BinaryPrimitives.ReadUInt32LittleEndian(block);
+        uint z = BinaryPrimitives.ReadUInt32LittleEndian(block[sizeof(uint)..]);
         uint sum = unchecked(Delta * Rounds);
 
         unchecked
         {
             for (int i = 0; i < Rounds; i++)
             {
-                v1 -= ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
-                v0 -= ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+                z -= (((y << 4) ^ (y >> 5)) + y) ^ (sum + key[(sum >> 11) & 3]);
                 sum -= Delta;
+                y -= (((z << 4) ^ (z >> 5)) + z) ^ (sum + key[sum & 3]);
             }
         }
 
-        BinaryPrimitives.WriteUInt32LittleEndian(block, v0);
-        BinaryPrimitives.WriteUInt32LittleEndian(block[sizeof(uint)..], v1);
+        BinaryPrimitives.WriteUInt32LittleEndian(block, y);
+        BinaryPrimitives.WriteUInt32LittleEndian(block[sizeof(uint)..], z);
     }
 
     private static void ValidateBlock(ReadOnlySpan<byte> block)
     {
         if (block.Length != BlockSize)
         {
-            throw new ArgumentException($"TEA block must contain exactly {BlockSize} bytes.", nameof(block));
+            throw new ArgumentException($"Metin2 TEA block must contain exactly {BlockSize} bytes.", nameof(block));
         }
     }
 
@@ -128,7 +136,7 @@ public static class LegacyTeaCipher
     {
         if (key.Length != KeyWordCount)
         {
-            throw new ArgumentException($"TEA key must contain exactly {KeyWordCount} uint32 words.", nameof(key));
+            throw new ArgumentException($"Metin2 TEA key must contain exactly {KeyWordCount} uint32 words.", nameof(key));
         }
     }
 }
