@@ -29,7 +29,7 @@ public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectio
         PipeWriter output,
         CharacterSelectionService selectionService,
         ILegacyCharacterSelectionWireContextProvider contextProvider)
-        : this(new LegacyPacketOutput(output, new GameSession()), selectionService, contextProvider)
+        : this(new LegacyPacketOutput(output), selectionService, contextProvider)
     {
     }
 
