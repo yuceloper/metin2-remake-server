@@ -41,14 +41,16 @@ public sealed class BouncyCastleImprovedCipherProviderTests
     }
 
     [TestMethod]
-    public void Mars_is_explicitly_unsupported_in_managed_provider()
+    [DataRow(ImprovedBlockCipherAlgorithm.Mars)]
+    [DataRow(ImprovedBlockCipherAlgorithm.Shacal2)]
+    public void Missing_managed_ciphers_are_explicitly_unsupported(ImprovedBlockCipherAlgorithm algorithm)
     {
         var provider = new BouncyCastleImprovedCipherProvider();
-        Assert.IsFalse(provider.Supports(ImprovedBlockCipherAlgorithm.Mars));
+        Assert.IsFalse(provider.Supports(algorithm));
 
-        (int keyLength, int ivLength) = ImprovedCipherSuiteSelector.GetSizes(ImprovedBlockCipherAlgorithm.Mars);
+        (int keyLength, int ivLength) = ImprovedCipherSuiteSelector.GetSizes(algorithm);
         var material = new ImprovedCipherMaterial(
-            ImprovedBlockCipherAlgorithm.Mars,
+            algorithm,
             new byte[keyLength],
             new byte[ivLength]);
 
