@@ -12,8 +12,8 @@ public static class SocketReceivePump
     public static async ValueTask<long> RunAsync(
         Socket socket,
         PipeWriter destination,
-        GameSession? session = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        GameSession? session = null)
     {
         ArgumentNullException.ThrowIfNull(socket);
         ArgumentNullException.ThrowIfNull(destination);
