@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.World;
@@ -13,11 +14,7 @@ public interface ILegacyCharacterBootstrapPublisher
     ValueTask PublishAsync(GameSession session, CancellationToken cancellationToken = default);
 }
 
-public sealed class LegacyCharacterBootstrapPublisher(
-    PipeWriter output,
-    CharacterBootstrapService bootstrapService,
-    ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
-    PlayerRuntimeRegistry runtimeRegistry) : ILegacyCharacterBootstrapPublisher
+public sealed class LegacyCharacterBootstrapPublisher : ILegacyCharacterBootstrapPublisher
 {
     private const int PointCount = 255;
     private const int PartCount = 4;
@@ -26,6 +23,36 @@ public sealed class LegacyCharacterBootstrapPublisher(
     private const int CharacterPointsFrameSize = 1 + CharacterPointsCodec.PayloadSize;
     private const int CharacterUpdateFrameSize = 1 + CharacterUpdateCodec.PayloadSize;
     private const int TotalFrameSize = CharacterDetailsFrameSize + CharacterPointsFrameSize + CharacterUpdateFrameSize;
+
+    private readonly LegacyPacketOutput _output;
+    private readonly CharacterBootstrapService _bootstrapService;
+    private readonly ILegacyCharacterBootstrapRuntimeContextProvider _runtimeContextProvider;
+    private readonly PlayerRuntimeRegistry _runtimeRegistry;
+
+    public LegacyCharacterBootstrapPublisher(
+        PipeWriter output,
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
+        PlayerRuntimeRegistry runtimeRegistry)
+        : this(new LegacyPacketOutput(output), bootstrapService, runtimeContextProvider, runtimeRegistry)
+    {
+    }
+
+    public LegacyCharacterBootstrapPublisher(
+        LegacyPacketOutput output,
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
+        PlayerRuntimeRegistry runtimeRegistry)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(bootstrapService);
+        ArgumentNullException.ThrowIfNull(runtimeContextProvider);
+        ArgumentNullException.ThrowIfNull(runtimeRegistry);
+        _output = output;
+        _bootstrapService = bootstrapService;
+        _runtimeContextProvider = runtimeContextProvider;
+        _runtimeRegistry = runtimeRegistry;
+    }
 
     public async ValueTask PublishAsync(GameSession session, CancellationToken cancellationToken = default)
     {
@@ -38,12 +65,12 @@ public sealed class LegacyCharacterBootstrapPublisher(
             throw new InvalidOperationException("Character bootstrap requires an authenticated selected character in Loading phase.");
         }
 
-        CharacterBootstrapSnapshot snapshot = await bootstrapService
+        CharacterBootstrapSnapshot snapshot = await _bootstrapService
             .GetRequiredOwnedAsync(accountId, characterId, cancellationToken)
             .ConfigureAwait(false);
 
         var position = new Position(snapshot.MapId, snapshot.PositionX, snapshot.PositionY);
-        if (!runtimeRegistry.TryReserve(snapshot.CharacterId, position, out PlayerRuntimeReservation reservation))
+        if (!_runtimeRegistry.TryReserve(snapshot.CharacterId, position, out PlayerRuntimeReservation reservation))
         {
             throw new InvalidOperationException($"Character {snapshot.CharacterId} already has an active runtime reservation.");
         }
@@ -54,7 +81,7 @@ public sealed class LegacyCharacterBootstrapPublisher(
             session.BindRuntimeEntity(reservation.EntityId);
             bound = true;
 
-            LegacyCharacterBootstrapRuntimeContext runtime = runtimeContextProvider.Get(session, in snapshot);
+            LegacyCharacterBootstrapRuntimeContext runtime = _runtimeContextProvider.Get(session, in snapshot);
             if (runtime.Points.Length != PointCount) throw new InvalidOperationException($"Legacy point projection must contain exactly {PointCount} values.");
             if (runtime.Parts.Length != PartCount) throw new InvalidOperationException($"Legacy character update requires exactly {PartCount} parts.");
             if (runtime.Affects.Length != AffectCount) throw new InvalidOperationException($"Legacy character update requires exactly {AffectCount} affect words.");
@@ -67,24 +94,27 @@ public sealed class LegacyCharacterBootstrapPublisher(
             var pointPacket = new CharacterPoints(points);
             var update = new CharacterUpdate(vid, runtime.Parts, runtime.MoveSpeed, runtime.AttackSpeed, runtime.State, runtime.Affects, runtime.GuildId, runtime.RankPoints, runtime.PkMode, runtime.MountVnum);
 
-            Memory<byte> memory = output.GetMemory(TotalFrameSize);
-            Span<byte> destination = memory.Span;
+            Span<byte> batch = stackalloc byte[TotalFrameSize];
             int offset = 0;
-            PacketFrameWriteStatus detailsStatus = PacketFrameWriter.TryWrite(in details, destination[offset..], out int detailsWritten);
+            PacketFrameWriteStatus detailsStatus = PacketFrameWriter.TryWrite(in details, batch[offset..], out int detailsWritten);
             EnsureWritten(nameof(CharacterDetails), detailsStatus, detailsWritten, CharacterDetailsFrameSize); offset += detailsWritten;
-            PacketFrameWriteStatus pointsStatus = PacketFrameWriter.TryWrite(in pointPacket, destination[offset..], out int pointsWritten);
+            PacketFrameWriteStatus pointsStatus = PacketFrameWriter.TryWrite(in pointPacket, batch[offset..], out int pointsWritten);
             EnsureWritten(nameof(CharacterPoints), pointsStatus, pointsWritten, CharacterPointsFrameSize); offset += pointsWritten;
-            PacketFrameWriteStatus updateStatus = PacketFrameWriter.TryWrite(in update, destination[offset..], out int updateWritten);
+            PacketFrameWriteStatus updateStatus = PacketFrameWriter.TryWrite(in update, batch[offset..], out int updateWritten);
             EnsureWritten(nameof(CharacterUpdate), updateStatus, updateWritten, CharacterUpdateFrameSize); offset += updateWritten;
 
-            output.Advance(offset);
-            FlushResult flush = await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-            if (flush.IsCanceled) throw new OperationCanceledException(cancellationToken);
+            if (offset != TotalFrameSize)
+            {
+                throw new InvalidOperationException($"Character bootstrap batch size mismatch: {offset} != {TotalFrameSize}.");
+            }
+
+            _output.Write(batch);
+            await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
             if (bound) session.ClearRuntimeEntity();
-            runtimeRegistry.Release(reservation.EntityId);
+            _runtimeRegistry.Release(reservation.EntityId);
             throw;
         }
     }
