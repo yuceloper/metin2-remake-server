@@ -6,7 +6,7 @@ namespace Metin2.Infrastructure.Networking.Tests;
 public sealed class LegacyTeaSecurityTests
 {
     [TestMethod]
-    public void Zero_block_and_zero_key_match_classic_TEA_vector()
+    public void Zero_block_and_zero_key_match_classic_metin2_block_vector()
     {
         var block = new byte[8];
         var key = new uint[4];
@@ -14,7 +14,7 @@ public sealed class LegacyTeaSecurityTests
         LegacyTeaCipher.EncryptBlock(block, key);
 
         CollectionAssert.AreEqual(
-            new byte[] { 0x0A, 0x3A, 0xEA, 0x41, 0x40, 0xA9, 0xBA, 0x94 },
+            new byte[] { 0xD8, 0xD4, 0xE9, 0xDE, 0xD9, 0x1E, 0x13, 0xF7 },
             block);
 
         LegacyTeaCipher.DecryptBlock(block, key);
@@ -22,7 +22,7 @@ public sealed class LegacyTeaSecurityTests
     }
 
     [TestMethod]
-    public void Padded_encrypt_uses_zero_padding_to_eight_byte_boundary()
+    public void Padded_encrypt_matches_metin2_zero_fill_and_eight_byte_rounding()
     {
         byte[] plaintext = [0x01, 0x02, 0x03];
         var encrypted = new byte[LegacyTeaCipher.GetEncryptedSize(plaintext.Length)];
@@ -32,7 +32,7 @@ public sealed class LegacyTeaSecurityTests
 
         Assert.AreEqual(8, encryptedLength);
         CollectionAssert.AreEqual(
-            new byte[] { 0x4B, 0x50, 0x2C, 0x49, 0x00, 0x1A, 0x40, 0xCB },
+            new byte[] { 0xA4, 0x9C, 0x57, 0x76, 0x58, 0xE8, 0xE0, 0x12 },
             encrypted);
 
         int decryptedLength = LegacyTeaCipher.DecryptBlocks(encrypted, decrypted, new uint[4]);
@@ -43,7 +43,7 @@ public sealed class LegacyTeaSecurityTests
     }
 
     [TestMethod]
-    public void Profile_derives_server_encryption_key_from_client_key()
+    public void Profile_derives_server_encryption_key_using_metin2_block_semantics()
     {
         var profile = CreateReferenceProfile();
         uint[] clientKey = [1, 2, 3, 4];
@@ -52,7 +52,7 @@ public sealed class LegacyTeaSecurityTests
         profile.DeriveServerEncryptionKey(clientKey, derived);
 
         CollectionAssert.AreEqual(
-            new uint[] { 0x17B5F6FEu, 0xF267D4C6u, 0x7E4B7D69u, 0xF12F7D5Au },
+            new uint[] { 0xF2703277u, 0xBF70B4FBu, 0x3F970615u, 0xB1DE9815u },
             derived.ToArray());
     }
 
@@ -80,7 +80,7 @@ public sealed class LegacyTeaSecurityTests
         Assert.AreEqual(LegacyTeaSecurityStage.RotatedClientKey, state.Stage);
         CollectionAssert.AreEqual(clientKey, state.DecryptionKey.ToArray());
         CollectionAssert.AreEqual(
-            new uint[] { 0x17B5F6FEu, 0xF267D4C6u, 0x7E4B7D69u, 0xF12F7D5Au },
+            new uint[] { 0xF2703277u, 0xBF70B4FBu, 0x3F970615u, 0xB1DE9815u },
             state.EncryptionKey.ToArray());
     }
 
