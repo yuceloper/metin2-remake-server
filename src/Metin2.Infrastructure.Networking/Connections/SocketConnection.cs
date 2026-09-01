@@ -38,8 +38,8 @@ public sealed class SocketConnection : IAsyncDisposable
         Task<long> receivePump = SocketReceivePump.RunAsync(
             _socket,
             _input.Writer,
-            Session,
-            transportCancellation.Token).AsTask();
+            transportCancellation.Token,
+            session: Session).AsTask();
 
         try
         {
