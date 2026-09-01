@@ -37,6 +37,7 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         }
 
         _session.Authenticate(result.AccountId, result.Username, packet.XteaKey.Span);
+        _session.RotateConfiguredPacketSecurity(packet.XteaKey.Span);
         await _selectionPublisher.PublishAsync(_session, cancellationToken).ConfigureAwait(false);
     }
 
