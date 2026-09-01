@@ -6,6 +6,7 @@ using Metin2.Infrastructure.Networking.Security;
 using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Protocol.Generated.Packets;
+using Metin2.Protocol.Legacy;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
@@ -31,8 +32,8 @@ public sealed class ImprovedPacketSecuritySessionTests
 
         var profile = new LegacyClientCompatibilityProfile(
             "improved-test",
-            LegacyPacketEncryptionMode.ImprovedPacketEncryption,
-            null);
+            new LegacySequenceProfile("test", new byte[] { 0xAA }),
+            LegacyPacketEncryptionMode.ImprovedPacketEncryption);
         var session = new GameSession(compatibilityProfile: profile);
         session.ConfigureImprovedSecurity(security);
         var pipe = new Pipe();
