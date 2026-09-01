@@ -12,13 +12,18 @@ namespace Metin2.Infrastructure.Networking.Send;
 public sealed class LegacyPacketOutput
 {
     private readonly PipeWriter _writer;
-    private readonly GameSession _session;
+    private readonly GameSession? _session;
 
-    public LegacyPacketOutput(PipeWriter writer, GameSession session)
+    public LegacyPacketOutput(PipeWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(session);
         _writer = writer;
+    }
+
+    public LegacyPacketOutput(PipeWriter writer, GameSession session)
+        : this(writer)
+    {
+        ArgumentNullException.ThrowIfNull(session);
         _session = session;
     }
 
@@ -29,7 +34,7 @@ public sealed class LegacyPacketOutput
             throw new ArgumentException("Legacy packet frame cannot be empty.", nameof(frame));
         }
 
-        LegacyTeaSecurityState? tea = _session.TeaSecurityState;
+        LegacyTeaSecurityState? tea = _session?.TeaSecurityState;
         if (tea is { IsActive: true })
         {
             int encryptedSize = LegacyTeaCipher.GetEncryptedSize(frame.Length);
