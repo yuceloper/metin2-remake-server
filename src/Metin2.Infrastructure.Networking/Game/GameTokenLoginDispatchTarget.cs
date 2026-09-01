@@ -1,3 +1,4 @@
+using Metin2.Infrastructure.Networking.Security;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Game.Application;
 using Metin2.Protocol.Generated;
@@ -11,11 +12,13 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
     private readonly GameSession _session;
     private readonly IGameLoginService _loginService;
     private readonly ILegacyCharacterSelectionPublisher _selectionPublisher;
+    private readonly LegacyTeaSecurityProfile? _teaSecurityProfile;
 
     public GameTokenLoginDispatchTarget(
         GameSession session,
         IGameLoginService loginService,
-        ILegacyCharacterSelectionPublisher selectionPublisher)
+        ILegacyCharacterSelectionPublisher selectionPublisher,
+        LegacyTeaSecurityProfile? teaSecurityProfile = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(loginService);
@@ -23,6 +26,7 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         _session = session;
         _loginService = loginService;
         _selectionPublisher = selectionPublisher;
+        _teaSecurityProfile = teaSecurityProfile;
     }
 
     public async ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken)
@@ -37,6 +41,11 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         }
 
         _session.Authenticate(result.AccountId, result.Username, packet.XteaKey.Span);
+        if (_teaSecurityProfile is not null)
+        {
+            _session.RotateClassicTeaSecurity(packet.XteaKey.Span, _teaSecurityProfile);
+        }
+
         await _selectionPublisher.PublishAsync(_session, cancellationToken).ConfigureAwait(false);
     }
 
