@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Metin2.Infrastructure.Networking/Metin2.Infrastructure.Networking.csproj" />
+    <ProjectReference Include="../Metin2.Infrastructure.Persistence.Postgres/Metin2.Infrastructure.Persistence.Postgres.csproj" />
     <ProjectReference Include="../Metin2.Protocol/Metin2.Protocol.csproj" />
     <ProjectReference Include="../Metin2.Shared/Metin2.Shared.csproj" />
   </ItemGroup>
