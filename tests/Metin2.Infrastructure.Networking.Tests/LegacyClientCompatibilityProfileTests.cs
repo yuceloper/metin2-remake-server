@@ -20,7 +20,7 @@ public sealed class LegacyClientCompatibilityProfileTests
     }
 
     [TestMethod]
-    public void Improved_mode_is_explicitly_represented_but_not_claimed_implemented()
+    public void Improved_mode_reports_live_transport_implementation()
     {
         var profile = new LegacyClientCompatibilityProfile(
             "40250-research-placeholder",
@@ -28,7 +28,7 @@ public sealed class LegacyClientCompatibilityProfileTests
             LegacyPacketEncryptionMode.ImprovedPacketEncryption);
 
         Assert.AreEqual(LegacyPacketEncryptionMode.ImprovedPacketEncryption, profile.EncryptionMode);
-        Assert.IsFalse(profile.IsEncryptionImplemented);
+        Assert.IsTrue(profile.IsEncryptionImplemented);
     }
 
     [TestMethod]
