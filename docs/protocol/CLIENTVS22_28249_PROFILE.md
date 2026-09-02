@@ -42,6 +42,17 @@ The exact `s_bSequenceTable` initializer from `EterLib/NetStream.cpp` is embedde
 The profile validates both the embedded length and hash during initialization and creates
 fresh `LegacySequenceProfile` instances so callers do not share mutable profile state.
 
+## Runtime composition
+
+Use `LegacyGameSocketHandler.CreateClientVs22_28249(...)` at the application composition
+root. The factory binds the verified sequence profile, improved packet-security mode and the
+default Bouncy Castle cipher provider as one unit, while still allowing an explicit provider
+for deterministic tests.
+
+The executable `ServerHost` remains a handshake-only bootstrap and does not yet construct
+the application/database services required by the full game handler. The runtime factory is
+the supported composition boundary for hosts that provide those services.
+
 ## Remaining blockers
 
 This profile closes the exact-build and exact-sequence-table unknowns. A production
