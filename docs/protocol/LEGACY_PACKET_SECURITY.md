@@ -18,7 +18,7 @@ Supported profile modes are modeled as:
 
 - `None` — useful for deterministic protocol probes/tests,
 - `ClassicTea` — classic `_IMPROVED_PACKET_ENCRYPTION_` disabled path,
-- `ImprovedPacketEncryption` — explicitly represented but not implemented yet.
+- `ImprovedPacketEncryption` — DH2 key agreement and live length-preserving CTR transport are implemented; provider and target-profile coverage remain explicit capabilities.
 
 ## Classic TEA evidence
 
@@ -109,14 +109,31 @@ Therefore:
 - do not enable ClassicTea by default,
 - do not claim stock-client compatibility until the exact client executable/source/config is identified and captured.
 
+## Improved packet-encryption transport status
+
+The improved path is wired into live connections:
+
+1. the time handshake completes while the connection remains in the Handshake phase,
+2. the server sends the plaintext `0xFB` DH2 offer,
+3. the client `0xFB` reply derives directional cipher material,
+4. the server sends and flushes plaintext `0xFA` completion,
+5. only then are the continuous inbound and outbound CTR transforms activated,
+6. the post-security phase packet is the first encrypted server frame.
+
+Improved encryption is length-preserving and continuous across arbitrary socket chunks. It does not use classic per-packet padding. Unsupported selector outcomes fail explicitly; the managed provider currently has verified implementations for 12 of the 14 selector algorithms, while MARS and SHACAL2 remain unsupported.
+
+`LegacyClientCompatibilityProfile.IsEncryptionImplemented` reports whether the server has a live transport implementation for the selected mode. It is deliberately not a stock-client compatibility claim: exact sequence data, provider coverage, and capture verification are separate requirements.
+
 ## Remaining compatibility blockers
 
 Before the first meaningful stock-client compatibility claim:
 
-1. identify the exact target client build,
-2. obtain/verify its 32768-byte sequence table,
-3. determine classic vs improved packet encryption,
-4. implement the selected encryption transport path,
-5. verify the phase/key transition with a real packet capture.
+1. identify the exact target client build and retain its immutable source/binary fingerprint,
+2. obtain and verify that build's 32768-byte sequence table,
+3. confirm that the target enables improved packet encryption,
+4. provide verified MARS and SHACAL2 implementations or prove the target's negotiated selector does not require them,
+5. verify the handshake, key agreement, cipher activation, sequence bytes, and first authenticated packet with a real capture.
+
+The inspected `yuceloper/new-metin` repository is another C# server implementation, not a 40250 client source. It therefore cannot supply the target sequence table or client crypto configuration.
 
 The existing plaintext protocol probe remains intentionally separate from these client-specific compatibility profiles.
