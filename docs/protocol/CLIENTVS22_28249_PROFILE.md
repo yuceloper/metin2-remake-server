@@ -49,9 +49,21 @@ root. The factory binds the verified sequence profile, improved packet-security 
 default Bouncy Castle cipher provider as one unit, while still allowing an explicit provider
 for deterministic tests.
 
-The executable `ServerHost` remains a handshake-only bootstrap and does not yet construct
-the application/database services required by the full game handler. The runtime factory is
-the supported composition boundary for hosts that provide those services.
+The executable `ServerHost` now composes this handler for `--mode game` with the
+PostgreSQL auth-token and character repositories. Set
+`METIN2_POSTGRES_CONNECTION_STRING` before starting game mode. When binding to
+`0.0.0.0`, also set `METIN2_ADVERTISED_ADDRESS` to the concrete IPv4 address sent in
+the character-selection packet.
+
+Example:
+
+```bash
+METIN2_POSTGRES_CONNECTION_STRING='Host=127.0.0.1;Database=metin2;Username=metin2;Password=...'
+dotnet run --project src/Metin2.Server -- serve --mode game --bind 127.0.0.1 --port 13000
+```
+
+Auth mode remains the existing handshake bootstrap; a valid one-time auth token must already
+exist in PostgreSQL for the game `TokenLogin` flow.
 
 ## Remaining blockers
 
