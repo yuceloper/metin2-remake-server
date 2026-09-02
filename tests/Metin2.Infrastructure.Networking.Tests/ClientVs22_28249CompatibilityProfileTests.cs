@@ -1,4 +1,5 @@
 using Metin2.Infrastructure.Networking.Compatibility;
+using Metin2.Protocol.Legacy;
 
 namespace Metin2.Infrastructure.Networking.Tests;
 
