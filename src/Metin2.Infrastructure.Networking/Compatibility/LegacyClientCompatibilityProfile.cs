@@ -45,6 +45,14 @@ public sealed class LegacyClientCompatibilityProfile
 
     public LegacyTeaSecurityProfile? ClassicTea { get; }
 
+    /// <summary>
+    /// Indicates whether the server has a live transport implementation for the selected mode.
+    /// This does not claim that a specific stock client profile is capture-verified or that every
+    /// improved cipher selector is supported by the configured provider.
+    /// </summary>
     public bool IsEncryptionImplemented =>
-        EncryptionMode is LegacyPacketEncryptionMode.None or LegacyPacketEncryptionMode.ClassicTea;
+        EncryptionMode is
+            LegacyPacketEncryptionMode.None or
+            LegacyPacketEncryptionMode.ClassicTea or
+            LegacyPacketEncryptionMode.ImprovedPacketEncryption;
 }
