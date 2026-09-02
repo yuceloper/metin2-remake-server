@@ -1,7 +1,9 @@
 using System.Net;
+using Metin2.Infrastructure.Networking.Game;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Protocol.Generated;
+using Npgsql;
 
 namespace Metin2.Server;
 
@@ -41,7 +43,7 @@ public static class ServerHost
         Console.CancelKeyPress += cancelHandler;
         try
         {
-            Console.WriteLine($"Starting {options.Mode} handshake server on {endpoint}...");
+            Console.WriteLine($"Starting {options.Mode} server on {endpoint}...");
             Console.WriteLine("Press Ctrl+C to stop.");
 
             if (options.Mode == ServerRunMode.Auth)
@@ -50,7 +52,29 @@ public static class ServerHost
             }
             else
             {
-                await RunGameHandshakeTransportAsync(endpoint, cancellation.Token).ConfigureAwait(false);
+                string? connectionString = Environment.GetEnvironmentVariable(
+                    ServerGameComposition.ConnectionStringEnvironmentVariable);
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    Console.Error.WriteLine(
+                        $"{ServerGameComposition.ConnectionStringEnvironmentVariable} is required for game mode.");
+                    Environment.ExitCode = 2;
+                    return;
+                }
+
+                if (!TryResolveAdvertisedAddress(options.BindAddress, out IPAddress advertisedAddress))
+                {
+                    Console.Error.WriteLine(
+                        $"{ServerGameComposition.AdvertisedAddressEnvironmentVariable} must contain a concrete IPv4 address when --bind is 0.0.0.0.");
+                    Environment.ExitCode = 2;
+                    return;
+                }
+
+                await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
+                IAcceptedSocketHandler handler = ServerGameComposition.CreateClientVs22_28249(
+                    dataSource,
+                    new IPEndPoint(advertisedAddress, options.Port));
+                await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
         }
         finally
@@ -84,6 +108,21 @@ public static class ServerHost
         IPEndPoint bindEndPoint,
         CancellationToken cancellationToken = default) =>
         RunTransportAsync(CreateGameHandshakeHandler(), bindEndPoint, cancellationToken);
+
+    private static bool TryResolveAdvertisedAddress(
+        IPAddress bindAddress,
+        out IPAddress advertisedAddress)
+    {
+        string? configured = Environment.GetEnvironmentVariable(
+            ServerGameComposition.AdvertisedAddressEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return IPAddress.TryParse(configured, out advertisedAddress!);
+        }
+
+        advertisedAddress = bindAddress;
+        return !IPAddress.Any.Equals(bindAddress) && !IPAddress.IPv6Any.Equals(bindAddress);
+    }
 
     public static async Task RunTransportAsync(
         IAcceptedSocketHandler connectionHandler,
