@@ -1,4 +1,5 @@
 using System.Net;
+using Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Game;
 using Metin2.Protocol.Legacy;
 using Npgsql;
