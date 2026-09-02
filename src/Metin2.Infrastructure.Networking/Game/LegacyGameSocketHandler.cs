@@ -32,6 +32,36 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly LegacyClientCompatibilityProfile? _compatibilityProfile;
     private readonly IImprovedCipherProvider? _improvedCipherProvider;
 
+    public static LegacyGameSocketHandler CreateClientVs22_28249(
+        IServerTimeProvider timeProvider,
+        IHandshakeTokenSource handshakeTokenSource,
+        IGameLoginService loginService,
+        CharacterSelectionService selectionService,
+        CharacterSelectService characterSelectService,
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
+        ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
+        PlayerRuntimeRegistry? runtimeRegistry = null,
+        byte channelNumber = 1,
+        IImprovedCipherProvider? improvedCipherProvider = null)
+    {
+        LegacyClientCompatibilityProfile profile = ClientVs22_28249CompatibilityProfile.Create();
+        return new LegacyGameSocketHandler(
+            timeProvider,
+            handshakeTokenSource,
+            profile.Sequence,
+            loginService,
+            selectionService,
+            characterSelectService,
+            bootstrapService,
+            selectionWireContextProvider,
+            bootstrapRuntimeContextProvider,
+            runtimeRegistry,
+            channelNumber,
+            profile,
+            improvedCipherProvider);
+    }
+
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource handshakeTokenSource,
