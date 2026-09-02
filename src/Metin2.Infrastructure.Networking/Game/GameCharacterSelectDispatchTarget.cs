@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Protocol.Generated;
@@ -8,22 +9,48 @@ using Metin2.Shared.Identity;
 
 namespace Metin2.Infrastructure.Networking.Game;
 
-public sealed class GameCharacterSelectDispatchTarget(
-    GameSession session,
-    PipeWriter output,
-    CharacterSelectService selectService,
-    ILegacyCharacterBootstrapPublisher bootstrapPublisher)
+public sealed class GameCharacterSelectDispatchTarget
 {
     private const int PhaseFrameSize = 1 + PhaseCodec.PayloadSize;
 
+    private readonly GameSession _session;
+    private readonly LegacyPacketOutput _output;
+    private readonly CharacterSelectService _selectService;
+    private readonly ILegacyCharacterBootstrapPublisher _bootstrapPublisher;
+
+    public GameCharacterSelectDispatchTarget(
+        GameSession session,
+        PipeWriter output,
+        CharacterSelectService selectService,
+        ILegacyCharacterBootstrapPublisher bootstrapPublisher)
+        : this(session, new LegacyPacketOutput(output, session), selectService, bootstrapPublisher)
+    {
+    }
+
+    public GameCharacterSelectDispatchTarget(
+        GameSession session,
+        LegacyPacketOutput output,
+        CharacterSelectService selectService,
+        ILegacyCharacterBootstrapPublisher bootstrapPublisher)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(selectService);
+        ArgumentNullException.ThrowIfNull(bootstrapPublisher);
+        _session = session;
+        _output = output;
+        _selectService = selectService;
+        _bootstrapPublisher = bootstrapPublisher;
+    }
+
     public async ValueTask HandleAsync(SelectCharacter packet, CancellationToken cancellationToken)
     {
-        if (session.Phase != PacketPhase.Select || session.AccountId is not AccountId accountId)
+        if (_session.Phase != PacketPhase.Select || _session.AccountId is not AccountId accountId)
         {
             throw new CharacterSelectRejectedException(packet.Slot);
         }
 
-        CharacterSelectResult result = await selectService
+        CharacterSelectResult result = await _selectService
             .SelectAsync(accountId, packet.Slot, cancellationToken)
             .ConfigureAwait(false);
 
@@ -33,25 +60,21 @@ public sealed class GameCharacterSelectDispatchTarget(
         }
 
         var phase = new Phase((byte)LegacyPhaseCode.Loading);
-        Memory<byte> memory = output.GetMemory(PhaseFrameSize);
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in phase, memory.Span, out int written);
+        Span<byte> frame = stackalloc byte[PhaseFrameSize];
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in phase, frame, out int written);
         if (status != PacketFrameWriteStatus.Done || written != PhaseFrameSize)
         {
             throw new InvalidOperationException(
                 $"Loading phase frame could not be written: {status} ({written} bytes)." );
         }
 
-        output.Advance(written);
-        FlushResult flush = await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-        if (flush.IsCanceled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
+        _output.Write(frame[..written]);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-        session.SelectCharacter(result.CharacterId);
-        session.TransitionTo(PacketPhase.Loading);
+        _session.SelectCharacter(result.CharacterId);
+        _session.TransitionTo(PacketPhase.Loading);
 
-        await bootstrapPublisher.PublishAsync(session, cancellationToken).ConfigureAwait(false);
+        await _bootstrapPublisher.PublishAsync(_session, cancellationToken).ConfigureAwait(false);
     }
 }
 

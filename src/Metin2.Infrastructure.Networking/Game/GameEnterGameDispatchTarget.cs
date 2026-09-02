@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using Metin2.Infrastructure.Networking.Handshake;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.World;
@@ -10,14 +11,7 @@ using Metin2.Shared.Identity;
 
 namespace Metin2.Infrastructure.Networking.Game;
 
-public sealed class GameEnterGameDispatchTarget(
-    GameSession session,
-    PipeWriter output,
-    PlayerRuntimeRegistry runtimeRegistry,
-    IServerTimeProvider timeProvider,
-    CharacterBootstrapService bootstrapService,
-    ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
-    byte channelNumber = 1)
+public sealed class GameEnterGameDispatchTarget
 {
     private const byte PlayerCharacterType = 6;
     private const int PartCount = 4;
@@ -29,23 +23,74 @@ public sealed class GameEnterGameDispatchTarget(
     private const int CharacterInfoFrameSize = 1 + CharacterInfoCodec.PayloadSize;
     private const int TotalFrameSize = PhaseFrameSize + GameTimeFrameSize + ChannelFrameSize + SpawnCharacterFrameSize + CharacterInfoFrameSize;
 
+    private readonly GameSession _session;
+    private readonly LegacyPacketOutput _output;
+    private readonly PlayerRuntimeRegistry _runtimeRegistry;
+    private readonly IServerTimeProvider _timeProvider;
+    private readonly CharacterBootstrapService _bootstrapService;
+    private readonly ILegacyCharacterBootstrapRuntimeContextProvider _runtimeContextProvider;
+    private readonly byte _channelNumber;
+
+    public GameEnterGameDispatchTarget(
+        GameSession session,
+        PipeWriter output,
+        PlayerRuntimeRegistry runtimeRegistry,
+        IServerTimeProvider timeProvider,
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
+        byte channelNumber = 1)
+        : this(
+            session,
+            new LegacyPacketOutput(output, session),
+            runtimeRegistry,
+            timeProvider,
+            bootstrapService,
+            runtimeContextProvider,
+            channelNumber)
+    {
+    }
+
+    public GameEnterGameDispatchTarget(
+        GameSession session,
+        LegacyPacketOutput output,
+        PlayerRuntimeRegistry runtimeRegistry,
+        IServerTimeProvider timeProvider,
+        CharacterBootstrapService bootstrapService,
+        ILegacyCharacterBootstrapRuntimeContextProvider runtimeContextProvider,
+        byte channelNumber = 1)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(runtimeRegistry);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(bootstrapService);
+        ArgumentNullException.ThrowIfNull(runtimeContextProvider);
+        _session = session;
+        _output = output;
+        _runtimeRegistry = runtimeRegistry;
+        _timeProvider = timeProvider;
+        _bootstrapService = bootstrapService;
+        _runtimeContextProvider = runtimeContextProvider;
+        _channelNumber = channelNumber;
+    }
+
     public async ValueTask HandleAsync(EnterGame packet, CancellationToken cancellationToken)
     {
-        if (session.Phase != PacketPhase.Loading ||
-            session.AccountId is not AccountId accountId ||
-            session.SelectedCharacterId is not CharacterId characterId ||
-            session.RuntimeEntityId is not EntityId entityId ||
-            !runtimeRegistry.TryGet(entityId, out PlayerRuntimeReservation reservation) ||
+        if (_session.Phase != PacketPhase.Loading ||
+            _session.AccountId is not AccountId accountId ||
+            _session.SelectedCharacterId is not CharacterId characterId ||
+            _session.RuntimeEntityId is not EntityId entityId ||
+            !_runtimeRegistry.TryGet(entityId, out PlayerRuntimeReservation reservation) ||
             reservation.CharacterId != characterId ||
-            runtimeRegistry.IsSpawned(entityId))
+            _runtimeRegistry.IsSpawned(entityId))
         {
             throw new EnterGameRejectedException();
         }
 
-        CharacterBootstrapSnapshot snapshot = await bootstrapService
+        CharacterBootstrapSnapshot snapshot = await _bootstrapService
             .GetRequiredOwnedAsync(accountId, characterId, cancellationToken)
             .ConfigureAwait(false);
-        LegacyCharacterBootstrapRuntimeContext runtime = runtimeContextProvider.Get(session, in snapshot);
+        LegacyCharacterBootstrapRuntimeContext runtime = _runtimeContextProvider.Get(_session, in snapshot);
 
         if (runtime.Parts.Length != PartCount)
         {
@@ -59,8 +104,8 @@ public sealed class GameEnterGameDispatchTarget(
 
         uint vid = entityId.Value;
         var phase = new Phase((byte)LegacyPhaseCode.Game);
-        var gameTime = new GameTime(checked((uint)timeProvider.GetMilliseconds()));
-        var channel = new Channel(channelNumber);
+        var gameTime = new GameTime(checked((uint)_timeProvider.GetMilliseconds()));
+        var channel = new Channel(_channelNumber);
         var spawn = new SpawnCharacter(
             vid,
             0f,
@@ -84,34 +129,29 @@ public sealed class GameEnterGameDispatchTarget(
             runtime.PkMode,
             runtime.MountVnum);
 
-        Memory<byte> memory = output.GetMemory(TotalFrameSize);
-        Span<byte> destination = memory.Span;
+        Span<byte> batch = stackalloc byte[TotalFrameSize];
         int offset = 0;
 
-        Write(in phase, destination, ref offset, PhaseFrameSize, nameof(Phase));
-        Write(in gameTime, destination, ref offset, GameTimeFrameSize, nameof(GameTime));
-        Write(in channel, destination, ref offset, ChannelFrameSize, nameof(Channel));
-        Write(in spawn, destination, ref offset, SpawnCharacterFrameSize, nameof(SpawnCharacter));
-        Write(in info, destination, ref offset, CharacterInfoFrameSize, nameof(CharacterInfo));
+        Write(in phase, batch, ref offset, PhaseFrameSize, nameof(Phase));
+        Write(in gameTime, batch, ref offset, GameTimeFrameSize, nameof(GameTime));
+        Write(in channel, batch, ref offset, ChannelFrameSize, nameof(Channel));
+        Write(in spawn, batch, ref offset, SpawnCharacterFrameSize, nameof(SpawnCharacter));
+        Write(in info, batch, ref offset, CharacterInfoFrameSize, nameof(CharacterInfo));
 
         if (offset != TotalFrameSize)
         {
             throw new InvalidOperationException($"EnterGame batch size mismatch: {offset} != {TotalFrameSize}.");
         }
 
-        output.Advance(offset);
-        FlushResult flush = await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-        if (flush.IsCanceled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
+        _output.Write(batch);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!runtimeRegistry.TryPromoteToSpawned(entityId, characterId))
+        if (!_runtimeRegistry.TryPromoteToSpawned(entityId, characterId))
         {
             throw new InvalidOperationException("Runtime reservation could not be promoted after EnterGame publication.");
         }
 
-        session.TransitionTo(PacketPhase.Game);
+        _session.TransitionTo(PacketPhase.Game);
     }
 
     private static void Write(in Phase packet, Span<byte> destination, ref int offset, int expected, string name)

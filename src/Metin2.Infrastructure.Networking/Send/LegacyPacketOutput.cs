@@ -34,6 +34,16 @@ public sealed class LegacyPacketOutput
             throw new ArgumentException("Legacy packet frame cannot be empty.", nameof(frame));
         }
 
+        ImprovedPacketSecuritySession? improved = _session?.ImprovedSecuritySession;
+        if (improved is { IsActive: true })
+        {
+            Span<byte> destination = _writer.GetSpan(frame.Length)[..frame.Length];
+            frame.CopyTo(destination);
+            improved.EncryptOutbound(destination);
+            _writer.Advance(frame.Length);
+            return frame.Length;
+        }
+
         LegacyTeaSecurityState? tea = _session?.TeaSecurityState;
         if (tea is { IsActive: true })
         {

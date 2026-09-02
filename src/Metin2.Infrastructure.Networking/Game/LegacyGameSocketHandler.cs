@@ -1,8 +1,11 @@
 using System.Net.Sockets;
+using Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Connections;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Networking.Receive;
+using Metin2.Infrastructure.Networking.Security;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Infrastructure.Networking.Sessions;
 using Metin2.Modules.Characters.Application;
 using Metin2.Modules.Game.Application;
@@ -26,6 +29,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly ILegacyCharacterBootstrapRuntimeContextProvider _bootstrapRuntimeContextProvider;
     private readonly PlayerRuntimeRegistry _runtimeRegistry;
     private readonly byte _channelNumber;
+    private readonly LegacyClientCompatibilityProfile? _compatibilityProfile;
+    private readonly IImprovedCipherProvider? _improvedCipherProvider;
 
     public LegacyGameSocketHandler(
         IServerTimeProvider timeProvider,
@@ -38,7 +43,9 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ILegacyCharacterSelectionWireContextProvider selectionWireContextProvider,
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
         PlayerRuntimeRegistry? runtimeRegistry = null,
-        byte channelNumber = 1)
+        byte channelNumber = 1,
+        LegacyClientCompatibilityProfile? compatibilityProfile = null,
+        IImprovedCipherProvider? improvedCipherProvider = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -49,6 +56,12 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ArgumentNullException.ThrowIfNull(bootstrapService);
         ArgumentNullException.ThrowIfNull(selectionWireContextProvider);
         ArgumentNullException.ThrowIfNull(bootstrapRuntimeContextProvider);
+
+        if (compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ImprovedPacketEncryption &&
+            improvedCipherProvider is null)
+        {
+            improvedCipherProvider = new BouncyCastleImprovedCipherProvider();
+        }
 
         _timeProvider = timeProvider;
         _handshakeTokenSource = handshakeTokenSource;
@@ -61,15 +74,61 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _bootstrapRuntimeContextProvider = bootstrapRuntimeContextProvider;
         _runtimeRegistry = runtimeRegistry ?? new PlayerRuntimeRegistry(new MonotonicEntityIdAllocator());
         _channelNumber = channelNumber;
+        _compatibilityProfile = compatibilityProfile;
+        _improvedCipherProvider = improvedCipherProvider;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(socket);
 
-        var session = new GameSession(PacketPhase.Handshake, new LegacySequenceState(_sequenceProfile));
+        LegacySequenceProfile sequenceProfile = _compatibilityProfile?.Sequence ?? _sequenceProfile;
+        var session = new GameSession(
+            PacketPhase.Handshake,
+            new LegacySequenceState(sequenceProfile),
+            _compatibilityProfile);
         await using var connection = new SocketConnection(socket, session);
-        var handshakeTarget = new LegacyHandshakeDispatchTarget(session, connection.Output, _timeProvider, _handshakeTokenSource, PacketPhase.Login);
+        var packetOutput = new LegacyPacketOutput(connection.Output, session);
+
+        ImprovedKeyAgreementDispatchTarget? improvedKeyAgreementTarget = null;
+        Func<GameSession, CancellationToken, ValueTask>? handshakeCompleted = null;
+        bool deferPostHandshakePhase = false;
+
+        if (_compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ImprovedPacketEncryption)
+        {
+            IImprovedCipherProvider cipherProvider = _improvedCipherProvider
+                ?? throw new InvalidOperationException("Improved cipher provider was not configured.");
+            var improvedSecurity = new ImprovedPacketSecuritySession(
+                new ImprovedDh2KeyAgreement(),
+                cipherProvider);
+            session.ConfigureImprovedSecurity(improvedSecurity);
+            var improvedTarget = new ImprovedKeyAgreementDispatchTarget(
+                session,
+                packetOutput,
+                improvedSecurity,
+                PacketPhase.Login);
+            improvedKeyAgreementTarget = improvedTarget;
+            handshakeCompleted = (_, ct) => improvedTarget.StartAsync(ct);
+            deferPostHandshakePhase = true;
+        }
+        else if (_compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ClassicTea)
+        {
+            // Reference boundary: the Login phase packet is plaintext, then the initial classic key activates.
+            handshakeCompleted = (completedSession, _) =>
+            {
+                completedSession.ActivateConfiguredPacketSecurity();
+                return ValueTask.CompletedTask;
+            };
+        }
+
+        var handshakeTarget = new LegacyHandshakeDispatchTarget(
+            session,
+            packetOutput,
+            _timeProvider,
+            _handshakeTokenSource,
+            PacketPhase.Login,
+            handshakeCompleted,
+            deferPostHandshakePhase);
         var selectionPublisher = new LegacyCharacterSelectionPublisher(connection.Output, _selectionService, _selectionWireContextProvider);
         var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
@@ -82,7 +141,12 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             _bootstrapService,
             _bootstrapRuntimeContextProvider,
             _channelNumber);
-        var target = new GameConnectionDispatchTarget(handshakeTarget, loginTarget, characterSelectTarget, enterGameTarget);
+        var target = new GameConnectionDispatchTarget(
+            handshakeTarget,
+            loginTarget,
+            characterSelectTarget,
+            enterGameTarget,
+            improvedKeyAgreementTarget);
         var consumer = new TypedPacketFrameConsumer(target);
         ValueTask<long> sendPump = connection.RunSendAsync(cancellationToken);
 

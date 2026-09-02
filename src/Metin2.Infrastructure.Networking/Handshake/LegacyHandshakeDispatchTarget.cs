@@ -30,6 +30,7 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
     private readonly LegacyHandshakeState _state;
     private readonly PacketPhase _nextPhase;
     private readonly Func<GameSession, CancellationToken, ValueTask>? _onCompleted;
+    private readonly bool _deferPostHandshakePhase;
 
     public LegacyHandshakeDispatchTarget(
         GameSession session,
@@ -37,8 +38,9 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource tokenSource,
         PacketPhase nextPhase,
-        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null)
-        : this(session, new LegacyPacketOutput(output, session), timeProvider, tokenSource, nextPhase, onCompleted)
+        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null,
+        bool deferPostHandshakePhase = false)
+        : this(session, new LegacyPacketOutput(output, session), timeProvider, tokenSource, nextPhase, onCompleted, deferPostHandshakePhase)
     {
     }
 
@@ -48,7 +50,8 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource tokenSource,
         PacketPhase nextPhase,
-        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null)
+        Func<GameSession, CancellationToken, ValueTask>? onCompleted = null,
+        bool deferPostHandshakePhase = false)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(output);
@@ -59,18 +62,23 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         {
             throw new ArgumentOutOfRangeException(nameof(nextPhase), "Post-handshake phase must be a concrete non-handshake phase.");
         }
+        if (deferPostHandshakePhase && onCompleted is null)
+        {
+            throw new ArgumentException("Deferred post-handshake phase requires a completion callback.", nameof(onCompleted));
+        }
 
         _session = session;
         _output = output;
         _timeProvider = timeProvider;
         _nextPhase = nextPhase;
         _onCompleted = onCompleted;
+        _deferPostHandshakePhase = deferPostHandshakePhase;
         _state = new LegacyHandshakeState(tokenSource.NextToken());
     }
 
     public uint Token => _state.Token;
 
-    public bool IsCompleted => !_state.IsActive && _session.Phase == _nextPhase;
+    public bool IsCompleted => !_state.IsActive && (_deferPostHandshakePhase || _session.Phase == _nextPhase);
 
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
@@ -87,6 +95,12 @@ public sealed class LegacyHandshakeDispatchTarget : IPacketDispatchTarget
         switch (result.Decision)
         {
             case LegacyHandshakeDecision.Completed:
+                if (_deferPostHandshakePhase)
+                {
+                    await _onCompleted!(_session, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
                 _session.TransitionTo(_nextPhase);
                 await WritePhaseAsync(MapWirePhase(_nextPhase), cancellationToken).ConfigureAwait(false);
                 if (_onCompleted is not null)

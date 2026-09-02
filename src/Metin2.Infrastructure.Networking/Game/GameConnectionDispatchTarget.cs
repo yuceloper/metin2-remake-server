@@ -1,4 +1,5 @@
 using Metin2.Infrastructure.Networking.Handshake;
+using Metin2.Infrastructure.Networking.Security;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
 using HandshakePacket = Metin2.Protocol.Generated.Packets.Handshake;
@@ -11,12 +12,14 @@ public sealed class GameConnectionDispatchTarget : IPacketDispatchTarget
     private readonly GameTokenLoginDispatchTarget _login;
     private readonly GameCharacterSelectDispatchTarget _characterSelect;
     private readonly GameEnterGameDispatchTarget _enterGame;
+    private readonly ImprovedKeyAgreementDispatchTarget? _improvedKeyAgreement;
 
     public GameConnectionDispatchTarget(
         LegacyHandshakeDispatchTarget handshake,
         GameTokenLoginDispatchTarget login,
         GameCharacterSelectDispatchTarget characterSelect,
-        GameEnterGameDispatchTarget enterGame)
+        GameEnterGameDispatchTarget enterGame,
+        ImprovedKeyAgreementDispatchTarget? improvedKeyAgreement = null)
     {
         ArgumentNullException.ThrowIfNull(handshake);
         ArgumentNullException.ThrowIfNull(login);
@@ -26,10 +29,15 @@ public sealed class GameConnectionDispatchTarget : IPacketDispatchTarget
         _login = login;
         _characterSelect = characterSelect;
         _enterGame = enterGame;
+        _improvedKeyAgreement = improvedKeyAgreement;
     }
 
     public ValueTask HandleAsync(HandshakePacket packet, CancellationToken cancellationToken) =>
         _handshake.HandleAsync(packet, cancellationToken);
+
+    public ValueTask HandleAsync(KeyAgreement packet, CancellationToken cancellationToken) =>
+        _improvedKeyAgreement?.HandleAsync(packet, cancellationToken)
+        ?? Unsupported(packet);
 
     public ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken) =>
         _login.HandleAsync(packet, cancellationToken);
