@@ -44,8 +44,10 @@ public sealed class ImprovedPacketSecuritySession
                 $"Improved cipher selection is not supported by the configured provider: outbound={suite.Outbound.Algorithm}, inbound={suite.Inbound.Algorithm}.");
         }
 
-        _outbound = _cipherProvider.Create(in suite.Outbound);
-        _inbound = _cipherProvider.Create(in suite.Inbound);
+        ImprovedCipherMaterial outboundMaterial = suite.Outbound;
+        ImprovedCipherMaterial inboundMaterial = suite.Inbound;
+        _outbound = _cipherProvider.Create(in outboundMaterial);
+        _inbound = _cipherProvider.Create(in inboundMaterial);
     }
 
     public Metin2.Protocol.Generated.Packets.KeyAgreementCompleted CreateCompletionPacket() =>
