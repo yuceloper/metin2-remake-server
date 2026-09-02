@@ -13,6 +13,7 @@ namespace Metin2.Server;
 public static class ServerGameComposition
 {
     public const string ConnectionStringEnvironmentVariable = "METIN2_POSTGRES_CONNECTION_STRING";
+    public const string AdvertisedAddressEnvironmentVariable = "METIN2_ADVERTISED_ADDRESS";
 
     public static IAcceptedSocketHandler CreateClientVs22_28249(
         NpgsqlDataSource dataSource,
