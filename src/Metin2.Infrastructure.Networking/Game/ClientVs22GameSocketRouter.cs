@@ -19,11 +19,13 @@ public sealed class ClientVs22GameSocketRouter : IAcceptedSocketHandler
     private readonly IAcceptedSocketHandler _gameHandler;
     private readonly short _channelPort;
     private readonly TimeSpan _probeWindow;
+    private readonly Action<string>? _diagnosticSink;
 
     public ClientVs22GameSocketRouter(
         IAcceptedSocketHandler gameHandler,
         ushort channelPort,
-        TimeSpan? probeWindow = null)
+        TimeSpan? probeWindow = null,
+        Action<string>? diagnosticSink = null)
     {
         ArgumentNullException.ThrowIfNull(gameHandler);
         if (channelPort > short.MaxValue)
@@ -36,6 +38,7 @@ public sealed class ClientVs22GameSocketRouter : IAcceptedSocketHandler
         _gameHandler = gameHandler;
         _channelPort = checked((short)channelPort);
         _probeWindow = probeWindow ?? DefaultProbeWindow;
+        _diagnosticSink = diagnosticSink;
         if (_probeWindow <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(probeWindow));
@@ -59,21 +62,25 @@ public sealed class ClientVs22GameSocketRouter : IAcceptedSocketHandler
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            Trace("route=game initial-header=timeout");
             await _gameHandler.HandleAsync(socket, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (received == 0)
         {
+            Trace("route=closed-before-header");
             return;
         }
 
         if (header[0] != StateCheckerRequestHeader)
         {
+            Trace($"route=game initial-header=0x{header[0]:X2}");
             await _gameHandler.HandleAsync(socket, cancellationToken).ConfigureAwait(false);
             return;
         }
 
+        Trace("route=state-checker");
         _ = await socket
             .ReceiveAsync(header, SocketFlags.None, cancellationToken)
             .ConfigureAwait(false);
@@ -88,6 +95,8 @@ public sealed class ClientVs22GameSocketRouter : IAcceptedSocketHandler
 
         await SendAllAsync(socket, response, cancellationToken).ConfigureAwait(false);
     }
+
+    private void Trace(string message) => _diagnosticSink?.Invoke($"router {message}");
 
     private static async ValueTask SendAllAsync(
         Socket socket,
