@@ -17,13 +17,15 @@ public sealed class GameCharacterSelectDispatchTarget
     private readonly LegacyPacketOutput _output;
     private readonly CharacterSelectService _selectService;
     private readonly ILegacyCharacterBootstrapPublisher _bootstrapPublisher;
+    private readonly Action? _selectionCompleted;
 
     public GameCharacterSelectDispatchTarget(
         GameSession session,
         PipeWriter output,
         CharacterSelectService selectService,
-        ILegacyCharacterBootstrapPublisher bootstrapPublisher)
-        : this(session, new LegacyPacketOutput(output, session), selectService, bootstrapPublisher)
+        ILegacyCharacterBootstrapPublisher bootstrapPublisher,
+        Action? selectionCompleted = null)
+        : this(session, new LegacyPacketOutput(output, session), selectService, bootstrapPublisher, selectionCompleted)
     {
     }
 
@@ -31,7 +33,8 @@ public sealed class GameCharacterSelectDispatchTarget
         GameSession session,
         LegacyPacketOutput output,
         CharacterSelectService selectService,
-        ILegacyCharacterBootstrapPublisher bootstrapPublisher)
+        ILegacyCharacterBootstrapPublisher bootstrapPublisher,
+        Action? selectionCompleted = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(output);
@@ -41,6 +44,7 @@ public sealed class GameCharacterSelectDispatchTarget
         _output = output;
         _selectService = selectService;
         _bootstrapPublisher = bootstrapPublisher;
+        _selectionCompleted = selectionCompleted;
     }
 
     public async ValueTask HandleAsync(SelectCharacter packet, CancellationToken cancellationToken)
@@ -73,6 +77,7 @@ public sealed class GameCharacterSelectDispatchTarget
 
         _session.SelectCharacter(result.CharacterId);
         _session.TransitionTo(PacketPhase.Loading);
+        _selectionCompleted?.Invoke();
 
         await _bootstrapPublisher.PublishAsync(_session, cancellationToken).ConfigureAwait(false);
     }
