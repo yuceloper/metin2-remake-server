@@ -57,6 +57,8 @@ public static class ServerHost
             }
 
             await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
+            await ServerDatabaseBootstrap.InitializeAsync(dataSource, cancellation.Token).ConfigureAwait(false);
+
             if (options.Mode == ServerRunMode.Auth)
             {
                 IAcceptedSocketHandler handler = ServerAuthComposition.CreateClientVs22_28249(dataSource);

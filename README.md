@@ -37,7 +37,7 @@ Original Metin2 Client -> TCP -> Handshake -> Login -> Character List -> Charact
 
 ## Handshake Development Checkpoint
 
-The current server can run a reference-backed legacy handshake listener in either Auth or Game mode. Ports are deliberately explicit; the examples below use local development ports and do **not** claim canonical Metin2 port numbers.
+The server can run the source-verified ClientVS22 28249 Auth or Game listener; the independent plaintext probe examples below remain historical development checks. Ports are deliberately explicit; the examples below use local development ports and do **not** claim canonical Metin2 port numbers.
 
 Run an Auth handshake listener:
 
@@ -113,6 +113,41 @@ METIN2_POSTGRES_PORT
 Database changes are explicit embedded SQL migrations under `src/Metin2.Infrastructure.Persistence.Postgres/Migrations`. `PostgresMigrator` records successfully applied versions in `schema_migrations` and executes each new migration transactionally.
 
 Authentication password hashes use a versioned PBKDF2-HMAC-SHA256 format. The current production default is 600,000 iterations with a unique random salt. The algorithm and work factor are encoded with each stored hash so password storage can be upgraded without changing the Auth application contract.
+
+## ClientVS22 Local Trial Stack
+
+The full source-verified ClientVS22 28249 Auth + Game path can be started with PostgreSQL:
+
+```bash
+docker compose up --build auth game
+```
+
+Development defaults:
+
+```text
+Auth address: 127.0.0.1:11002
+Game address: 127.0.0.1:13000
+Username:     test
+Password:     test1234
+Character:    testHero
+```
+
+Override credentials before starting:
+
+```bash
+METIN2_DEV_USERNAME=myplayer METIN2_DEV_PASSWORD='change-this-password' \
+docker compose up --build auth game
+```
+
+For a client on another computer, set `METIN2_ADVERTISED_ADDRESS` to the server's reachable
+IPv4 address. The Compose defaults are development-only; do not expose the known default
+database or game credentials to an untrusted network.
+
+Both server processes apply embedded migrations during startup. A PostgreSQL advisory lock
+serializes concurrent migration attempts. Only the Auth Compose service opts into development
+account seeding; standalone/production runs do not seed unless
+`METIN2_SEED_DEVELOPMENT_ACCOUNT=true` is explicitly set together with
+`METIN2_DEV_USERNAME` and `METIN2_DEV_PASSWORD`.
 
 ## Repository Structure
 
