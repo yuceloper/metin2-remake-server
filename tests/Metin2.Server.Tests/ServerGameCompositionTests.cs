@@ -23,6 +23,17 @@ public sealed class ServerGameCompositionTests
     }
 
     [TestMethod]
+    public async Task ClientVs22_auth_composition_builds_full_auth_socket_handler_without_opening_database()
+    {
+        await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(
+            "Host=127.0.0.1;Port=1;Database=metin2;Username=test;Password=test;Timeout=1");
+
+        var handler = ServerAuthComposition.CreateClientVs22_28249(dataSource);
+
+        Assert.IsInstanceOfType<Metin2.Infrastructure.Networking.Auth.LegacyAuthSocketHandler>(handler);
+    }
+
+    [TestMethod]
     public void Selection_wire_provider_uses_ipv4_wire_order_and_profile_sequence()
     {
         var profile = ClientVs22_28249CompatibilityProfile.Create();
