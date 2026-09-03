@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Metin2.Infrastructure.Networking.Send;
 using Metin2.Modules.Auth.Application;
 using Metin2.Protocol.Generated;
 using Metin2.Protocol.Generated.Packets;
@@ -12,10 +13,15 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
     private const int LoginFailedFrameSize = 11;
     private const string WrongPasswordStatus = "WRONGPWD";
 
-    private readonly PipeWriter _output;
+    private readonly LegacyPacketOutput _output;
     private readonly IAuthLoginService _loginService;
 
     public AuthLoginDispatchTarget(PipeWriter output, IAuthLoginService loginService)
+        : this(new LegacyPacketOutput(output), loginService)
+    {
+    }
+
+    public AuthLoginDispatchTarget(LegacyPacketOutput output, IAuthLoginService loginService)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(loginService);
@@ -48,29 +54,20 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
 
     private async ValueTask WriteLoginSuccessAsync(LoginSuccess packet, CancellationToken cancellationToken)
     {
-        Memory<byte> memory = _output.GetMemory(LoginSuccessFrameSize);
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        Span<byte> frame = stackalloc byte[LoginSuccessFrameSize];
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, frame, out int written);
         EnsureWritten(status, written, LoginSuccessFrameSize);
-        _output.Advance(written);
-        await FlushAsync(cancellationToken).ConfigureAwait(false);
+        _output.Write(frame[..written]);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask WriteLoginFailedAsync(LoginFailed packet, CancellationToken cancellationToken)
     {
-        Memory<byte> memory = _output.GetMemory(LoginFailedFrameSize);
-        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, memory.Span, out int written);
+        Span<byte> frame = stackalloc byte[LoginFailedFrameSize];
+        PacketFrameWriteStatus status = PacketFrameWriter.TryWrite(in packet, frame, out int written);
         EnsureWritten(status, written, LoginFailedFrameSize);
-        _output.Advance(written);
-        await FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async ValueTask FlushAsync(CancellationToken cancellationToken)
-    {
-        FlushResult flush = await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
-        if (flush.IsCanceled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
+        _output.Write(frame[..written]);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static void EnsureWritten(PacketFrameWriteStatus status, int written, int expectedSize)
