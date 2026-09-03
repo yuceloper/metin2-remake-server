@@ -27,6 +27,7 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource handshakeTokenSource,
         IAuthLoginService loginService,
+        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption,
         IImprovedCipherProvider? improvedCipherProvider = null,
         Action<string>? diagnosticSink = null)
     {
