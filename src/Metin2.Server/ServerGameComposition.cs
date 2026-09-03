@@ -36,7 +36,7 @@ public static class ServerGameComposition
             new PostgresAccountEmpireRepository(dataSource),
             characterListService);
 
-        return LegacyGameSocketHandler.CreateClientVs22_28249(
+        LegacyGameSocketHandler gameHandler = LegacyGameSocketHandler.CreateClientVs22_28249(
             timeProvider ?? new StopwatchServerTimeProvider(),
             tokenSource ?? new RandomHandshakeTokenSource(),
             new GameLoginService(new PostgresAuthTokenConsumer(dataSource)),
@@ -48,5 +48,9 @@ public static class ServerGameComposition
                 checked((ushort)advertisedEndPoint.Port)),
             new DefaultLegacyCharacterBootstrapRuntimeContextProvider(),
             diagnosticSink: diagnosticSink);
+
+        return new ClientVs22GameSocketRouter(
+            gameHandler,
+            checked((ushort)advertisedEndPoint.Port));
     }
 }

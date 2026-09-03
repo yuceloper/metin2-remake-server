@@ -19,7 +19,7 @@ public sealed class ServerGameCompositionTests
             dataSource,
             new IPEndPoint(IPAddress.Loopback, 13000));
 
-        Assert.IsInstanceOfType<LegacyGameSocketHandler>(handler);
+        Assert.IsInstanceOfType<ClientVs22GameSocketRouter>(handler);
     }
 
     [TestMethod]
