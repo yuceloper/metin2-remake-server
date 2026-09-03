@@ -36,15 +36,19 @@ public sealed class GameTokenLoginDispatchTargetTests
     {
         var session = new GameSession(PacketPhase.Login);
         var publisher = new RecordingSelectionPublisher();
+        bool? reportedSuccess = null;
         var target = new GameTokenLoginDispatchTarget(
             session,
             new FixedGameLoginService(GameLoginResult.InvalidToken()),
-            publisher);
+            publisher,
+            success => reportedSuccess = success);
         var packet = new TokenLogin("player", 0x11223344, new uint[] { 1, 2, 3, 4 });
 
-        await Assert.ThrowsExactlyAsync<GameLoginRejectedException>(
+        GameLoginRejectedException exception = await Assert.ThrowsExactlyAsync<GameLoginRejectedException>(
             async () => await target.HandleAsync(packet, CancellationToken.None));
 
+        Assert.IsFalse(reportedSuccess);
+        Assert.IsFalse(exception.Message.Contains("player", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(session.IsAuthenticated);
         Assert.AreEqual(0, publisher.PublishCount);
     }

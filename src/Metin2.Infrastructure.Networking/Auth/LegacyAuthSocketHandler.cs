@@ -21,12 +21,14 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
     private readonly IAuthLoginService _loginService;
     private readonly LegacyClientCompatibilityProfile? _compatibilityProfile;
     private readonly IImprovedCipherProvider? _improvedCipherProvider;
+    private readonly Action<string>? _diagnosticSink;
 
     public static LegacyAuthSocketHandler CreateClientVs22_28249(
         IServerTimeProvider timeProvider,
         IHandshakeTokenSource handshakeTokenSource,
         IAuthLoginService loginService,
-        IImprovedCipherProvider? improvedCipherProvider = null)
+        IImprovedCipherProvider? improvedCipherProvider = null,
+        Action<string>? diagnosticSink = null)
     {
         LegacyClientCompatibilityProfile profile = ClientVs22_28249CompatibilityProfile.Create();
         return new LegacyAuthSocketHandler(
@@ -35,7 +37,8 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
             profile.Sequence,
             loginService,
             profile,
-            improvedCipherProvider);
+            improvedCipherProvider,
+            diagnosticSink);
     }
 
     public LegacyAuthSocketHandler(
@@ -44,7 +47,8 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
         LegacySequenceProfile sequenceProfile,
         IAuthLoginService loginService,
         LegacyClientCompatibilityProfile? compatibilityProfile = null,
-        IImprovedCipherProvider? improvedCipherProvider = null)
+        IImprovedCipherProvider? improvedCipherProvider = null,
+        Action<string>? diagnosticSink = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -63,11 +67,14 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
         _loginService = loginService;
         _compatibilityProfile = compatibilityProfile;
         _improvedCipherProvider = improvedCipherProvider;
+        _diagnosticSink = diagnosticSink;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(socket);
+        string connectionId = Guid.NewGuid().ToString("N")[..8];
+        Trace(connectionId, "connection-open");
 
         LegacySequenceProfile sequenceProfile = _compatibilityProfile?.Sequence ?? _sequenceProfile;
         var session = new GameSession(
@@ -96,7 +103,11 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
                 improvedSecurity,
                 PacketPhase.Auth);
             improvedKeyAgreementTarget = improvedTarget;
-            handshakeCompleted = (_, ct) => improvedTarget.StartAsync(ct);
+            handshakeCompleted = async (_, ct) =>
+            {
+                await improvedTarget.StartAsync(ct).ConfigureAwait(false);
+                Trace(connectionId, "improved-offer-sent");
+            };
             deferPostHandshakePhase = true;
         }
 
@@ -108,7 +119,10 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
             PacketPhase.Auth,
             handshakeCompleted,
             deferPostHandshakePhase);
-        var authTarget = new AuthLoginDispatchTarget(packetOutput, _loginService);
+        var authTarget = new AuthLoginDispatchTarget(
+            packetOutput,
+            _loginService,
+            success => Trace(connectionId, success ? "auth-login-success" : "auth-login-rejected"));
         var target = new AuthConnectionDispatchTarget(
             handshakeTarget,
             authTarget,
@@ -120,14 +134,21 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
         try
         {
             await handshakeTarget.StartAsync(cancellationToken).ConfigureAwait(false);
+            Trace(connectionId, "handshake-sent");
 
             _ = await connection.RunReceiveAsync(
                 PacketDirection.ClientToServer,
                 consumer,
                 cancellationToken).ConfigureAwait(false);
         }
+        catch (Exception exception)
+        {
+            Trace(connectionId, $"connection-failed type={exception.GetType().Name} phase={session.Phase}");
+            throw;
+        }
         finally
         {
+            Trace(connectionId, $"connection-close phase={session.Phase}");
             await connection.CompleteOutputAsync().ConfigureAwait(false);
 
             try
@@ -142,4 +163,7 @@ public sealed class LegacyAuthSocketHandler : IAcceptedSocketHandler
             }
         }
     }
+
+    private void Trace(string connectionId, string message) =>
+        _diagnosticSink?.Invoke($"connection={connectionId} {message}");
 }
