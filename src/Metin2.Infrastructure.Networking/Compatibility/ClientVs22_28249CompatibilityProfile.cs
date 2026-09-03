@@ -15,11 +15,11 @@ public static class ClientVs22_28249CompatibilityProfile
 
     private static readonly byte[] Sequence = LoadSequence();
 
-    public static LegacyClientCompatibilityProfile Create() =>
+    public static LegacyClientCompatibilityProfile Create(\n        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption) =>
                 new(
             Name,
             CreateSequenceProfile(),
-            LegacyPacketEncryptionMode.ImprovedPacketEncryption);
+            encryptionMode);
 
     public static LegacySequenceProfile CreateSequenceProfile() =>
                 new(Name + "-sequence", Sequence);
