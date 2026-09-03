@@ -17,7 +17,7 @@ public interface ILegacyCharacterSelectionPublisher
 
 public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectionPublisher
 {
-    private const int EmpireFrameSize = 1 + EmpireCodec.PayloadSize + 1;
+    private const byte EmpireHeader = 0x5A;\n    private const int EmpireFrameSize = 2;
     private const int PhaseFrameSize = 1 + PhaseCodec.PayloadSize;
     private const int CharactersFrameSize = 1 + CharactersCodec.PayloadSize;
 
@@ -95,13 +95,11 @@ public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectio
         var characters = new Characters(summaries, guildIds, guildNames, context.Handle, context.RandomKey);
 
         Span<byte> empireFrame = stackalloc byte[EmpireFrameSize];
-        PacketFrameWriteStatus empireStatus = PacketFrameWriter.TryWrite(
-            in empire,
-            context.EmpireSequence,
-            empireFrame,
-            out int empireWritten);
-        EnsureWritten(nameof(Empire), empireStatus, empireWritten, EmpireFrameSize);
-        _output.Write(empireFrame[..empireWritten]);
+        // ClientVS22 consumes the server-to-client Empire frame as header + empire id.
+        // Sequence bytes are emitted by the client for selected client-to-server packets only.
+        empireFrame[0] = EmpireHeader;
+        empireFrame[1] = snapshot.Empire;
+        _output.Write(empireFrame);
 
         Span<byte> phaseFrame = stackalloc byte[PhaseFrameSize];
         PacketFrameWriteStatus phaseStatus = PacketFrameWriter.TryWrite(in phase, phaseFrame, out int phaseWritten);
