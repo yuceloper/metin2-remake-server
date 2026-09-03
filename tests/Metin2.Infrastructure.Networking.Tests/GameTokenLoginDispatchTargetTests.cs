@@ -48,7 +48,7 @@ public sealed class GameTokenLoginDispatchTargetTests
             async () => await target.HandleAsync(packet, CancellationToken.None));
 
         Assert.IsFalse(reportedSuccess);
-        Assert.DoesNotContain("player", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.IsFalse(exception.Message.Contains("player", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(session.IsAuthenticated);
         Assert.AreEqual(0, publisher.PublishCount);
     }
