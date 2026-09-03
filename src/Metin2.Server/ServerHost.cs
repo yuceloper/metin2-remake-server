@@ -46,22 +46,24 @@ public static class ServerHost
             Console.WriteLine($"Starting {options.Mode} server on {endpoint}...");
             Console.WriteLine("Press Ctrl+C to stop.");
 
+            string? connectionString = Environment.GetEnvironmentVariable(
+                ServerGameComposition.ConnectionStringEnvironmentVariable);
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.Error.WriteLine(
+                    $"{ServerGameComposition.ConnectionStringEnvironmentVariable} is required for {options.Mode} mode.");
+                Environment.ExitCode = 2;
+                return;
+            }
+
+            await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
             if (options.Mode == ServerRunMode.Auth)
             {
-                await RunAuthHandshakeTransportAsync(endpoint, cancellation.Token).ConfigureAwait(false);
+                IAcceptedSocketHandler handler = ServerAuthComposition.CreateClientVs22_28249(dataSource);
+                await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
             else
             {
-                string? connectionString = Environment.GetEnvironmentVariable(
-                    ServerGameComposition.ConnectionStringEnvironmentVariable);
-                if (string.IsNullOrWhiteSpace(connectionString))
-                {
-                    Console.Error.WriteLine(
-                        $"{ServerGameComposition.ConnectionStringEnvironmentVariable} is required for game mode.");
-                    Environment.ExitCode = 2;
-                    return;
-                }
-
                 if (!TryResolveAdvertisedAddress(options.BindAddress, out IPAddress advertisedAddress))
                 {
                     Console.Error.WriteLine(
@@ -70,7 +72,6 @@ public static class ServerHost
                     return;
                 }
 
-                await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
                 IAcceptedSocketHandler handler = ServerGameComposition.CreateClientVs22_28249(
                     dataSource,
                     new IPEndPoint(advertisedAddress, options.Port));
