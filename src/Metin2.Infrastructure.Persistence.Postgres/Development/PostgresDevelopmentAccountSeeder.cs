@@ -1,4 +1,3 @@
-using System.Text;
 using Metin2.Infrastructure.Persistence.Postgres.Auth;
 using Metin2.Infrastructure.Persistence.Postgres.Security;
 using Npgsql;
@@ -18,7 +17,7 @@ public sealed class PostgresDevelopmentAccountSeeder(
         ArgumentException.ThrowIfNullOrEmpty(password);
 
         username = username.Trim();
-        if (username.Length > 30 || Encoding.ASCII.GetByteCount(username) != username.Length)
+        if (username.Length > 30 || username.Any(static character => character > 0x7F))
         {
             throw new ArgumentException(
                 "Development username must be ASCII and at most 30 characters.",
