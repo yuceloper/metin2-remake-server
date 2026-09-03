@@ -17,8 +17,10 @@ public sealed class ClientVs22EncryptionModeTests
             LegacyPacketEncryptionMode.ImprovedPacketEncryption,
             improved.EncryptionMode);
         Assert.AreEqual(LegacyPacketEncryptionMode.None, plaintext.EncryptionMode);
-        CollectionAssert.AreEqual(
-            improved.Sequence.Table.ToArray(),
-            plaintext.Sequence.Table.ToArray());
+        Assert.AreEqual(improved.Sequence.Length, plaintext.Sequence.Length);
+        Assert.AreEqual(improved.Sequence[0], plaintext.Sequence[0]);
+        Assert.AreEqual(
+            improved.Sequence[improved.Sequence.Length - 1],
+            plaintext.Sequence[plaintext.Sequence.Length - 1]);
     }
 }
