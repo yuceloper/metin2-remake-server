@@ -1,4 +1,5 @@
 using Metin2.Infrastructure.Networking.Auth;
+using Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Persistence.Postgres.Auth;
@@ -14,7 +15,8 @@ public static class ServerAuthComposition
         NpgsqlDataSource dataSource,
         IServerTimeProvider? timeProvider = null,
         IHandshakeTokenSource? tokenSource = null,
-        Action<string>? diagnosticSink = null)
+        Action<string>? diagnosticSink = null,
+        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
 
@@ -26,6 +28,7 @@ public static class ServerAuthComposition
             timeProvider ?? new StopwatchServerTimeProvider(),
             tokenSource ?? new RandomHandshakeTokenSource(),
             loginService,
+            encryptionMode: encryptionMode,
             diagnosticSink: diagnosticSink);
     }
 }

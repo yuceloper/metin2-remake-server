@@ -44,10 +44,11 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
         PlayerRuntimeRegistry? runtimeRegistry = null,
         byte channelNumber = 1,
+        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption,
         IImprovedCipherProvider? improvedCipherProvider = null,
         Action<string>? diagnosticSink = null)
     {
-        LegacyClientCompatibilityProfile profile = ClientVs22_28249CompatibilityProfile.Create();
+        LegacyClientCompatibilityProfile profile = ClientVs22_28249CompatibilityProfile.Create(encryptionMode);
         return new LegacyGameSocketHandler(
             timeProvider,
             handshakeTokenSource,

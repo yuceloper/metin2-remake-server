@@ -1,5 +1,6 @@
 using System.Net;
 using Metin2.Infrastructure.Networking.Game;
+using Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Protocol.Generated;
@@ -59,11 +60,25 @@ public static class ServerHost
             await using NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
             await ServerDatabaseBootstrap.InitializeAsync(dataSource, cancellation.Token).ConfigureAwait(false);
 
+            if (!TryResolveEncryptionMode(out LegacyPacketEncryptionMode encryptionMode))
+            {
+                Console.Error.WriteLine(
+                    $"{ServerGameComposition.EncryptionModeEnvironmentVariable} must be 'improved' or 'none'.");
+                Environment.ExitCode = 2;
+                return;
+            }
+
+            if (encryptionMode == LegacyPacketEncryptionMode.None)
+            {
+                Console.WriteLine("WARNING: packet encryption is disabled for local client compatibility testing.");
+            }
+
             if (options.Mode == ServerRunMode.Auth)
             {
                 IAcceptedSocketHandler handler = ServerAuthComposition.CreateClientVs22_28249(
                     dataSource,
-                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Auth, message));
+                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Auth, message),
+                    encryptionMode: encryptionMode);
                 await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
             else
@@ -79,7 +94,8 @@ public static class ServerHost
                 IAcceptedSocketHandler handler = ServerGameComposition.CreateClientVs22_28249(
                     dataSource,
                     new IPEndPoint(advertisedAddress, options.Port),
-                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Game, message));
+                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Game, message),
+                    encryptionMode: encryptionMode);
                 await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
         }
@@ -128,6 +144,28 @@ public static class ServerHost
 
         advertisedAddress = bindAddress;
         return !IPAddress.Any.Equals(bindAddress) && !IPAddress.IPv6Any.Equals(bindAddress);
+    }
+
+    private static bool TryResolveEncryptionMode(out LegacyPacketEncryptionMode mode)
+    {
+        string? configured = Environment.GetEnvironmentVariable(
+            ServerGameComposition.EncryptionModeEnvironmentVariable);
+
+        if (string.IsNullOrWhiteSpace(configured) ||
+            string.Equals(configured, "improved", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = LegacyPacketEncryptionMode.ImprovedPacketEncryption;
+            return true;
+        }
+
+        if (string.Equals(configured, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = LegacyPacketEncryptionMode.None;
+            return true;
+        }
+
+        mode = default;
+        return false;
     }
 
     private static void WriteDiagnostic(ServerRunMode mode, string message) =>

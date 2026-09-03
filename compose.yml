@@ -22,6 +22,7 @@ services:
     environment:
       METIN2_POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=${METIN2_POSTGRES_DB:-metin2};Username=${METIN2_POSTGRES_USER:-metin2};Password=${METIN2_POSTGRES_PASSWORD:-metin2-dev-only}
       METIN2_SEED_DEVELOPMENT_ACCOUNT: "true"
+      METIN2_PACKET_ENCRYPTION: ${METIN2_PACKET_ENCRYPTION:-none}
       METIN2_DEV_USERNAME: ${METIN2_DEV_USERNAME:-test}
       METIN2_DEV_PASSWORD: ${METIN2_DEV_PASSWORD:-test1234}
     ports:
@@ -38,6 +39,7 @@ services:
     environment:
       METIN2_POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=${METIN2_POSTGRES_DB:-metin2};Username=${METIN2_POSTGRES_USER:-metin2};Password=${METIN2_POSTGRES_PASSWORD:-metin2-dev-only}
       METIN2_ADVERTISED_ADDRESS: ${METIN2_ADVERTISED_ADDRESS:-127.0.0.1}
+      METIN2_PACKET_ENCRYPTION: ${METIN2_PACKET_ENCRYPTION:-none}
     ports:
       - "${METIN2_GAME_PORT:-13000}:13000"
     depends_on:
