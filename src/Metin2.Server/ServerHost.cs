@@ -1,5 +1,5 @@
 using System.Net;
-using Metin2.Infrastructure.Networking.Game;
+using Metin2.Infrastructure.Networking.Game;\nusing Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Protocol.Generated;
@@ -128,6 +128,28 @@ public static class ServerHost
 
         advertisedAddress = bindAddress;
         return !IPAddress.Any.Equals(bindAddress) && !IPAddress.IPv6Any.Equals(bindAddress);
+    }
+
+    private static bool TryResolveEncryptionMode(out LegacyPacketEncryptionMode mode)
+    {
+        string? configured = Environment.GetEnvironmentVariable(
+            ServerGameComposition.EncryptionModeEnvironmentVariable);
+
+        if (string.IsNullOrWhiteSpace(configured) ||
+            string.Equals(configured, "improved", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = LegacyPacketEncryptionMode.ImprovedPacketEncryption;
+            return true;
+        }
+
+        if (string.Equals(configured, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = LegacyPacketEncryptionMode.None;
+            return true;
+        }
+
+        mode = default;
+        return false;
     }
 
     private static void WriteDiagnostic(ServerRunMode mode, string message) =>
