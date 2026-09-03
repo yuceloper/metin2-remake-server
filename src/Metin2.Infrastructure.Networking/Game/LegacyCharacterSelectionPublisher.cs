@@ -17,7 +17,8 @@ public interface ILegacyCharacterSelectionPublisher
 
 public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectionPublisher
 {
-    private const byte EmpireHeader = 0x5A;\n    private const int EmpireFrameSize = 2;
+    private const byte EmpireHeader = 0x5A;
+    private const int EmpireFrameSize = 2;
     private const int PhaseFrameSize = 1 + PhaseCodec.PayloadSize;
     private const int CharactersFrameSize = 1 + CharactersCodec.PayloadSize;
 
