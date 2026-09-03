@@ -19,7 +19,8 @@ public static class ServerGameComposition
         NpgsqlDataSource dataSource,
         IPEndPoint advertisedEndPoint,
         IServerTimeProvider? timeProvider = null,
-        IHandshakeTokenSource? tokenSource = null)
+        IHandshakeTokenSource? tokenSource = null,
+        Action<string>? diagnosticSink = null)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
         ArgumentNullException.ThrowIfNull(advertisedEndPoint);
@@ -45,6 +46,7 @@ public static class ServerGameComposition
             new ConfiguredLegacyCharacterSelectionWireContextProvider(
                 advertisedEndPoint.Address,
                 checked((ushort)advertisedEndPoint.Port)),
-            new DefaultLegacyCharacterBootstrapRuntimeContextProvider());
+            new DefaultLegacyCharacterBootstrapRuntimeContextProvider(),
+            diagnosticSink: diagnosticSink);
     }
 }
