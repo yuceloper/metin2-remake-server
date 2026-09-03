@@ -61,7 +61,9 @@ public static class ServerHost
 
             if (options.Mode == ServerRunMode.Auth)
             {
-                IAcceptedSocketHandler handler = ServerAuthComposition.CreateClientVs22_28249(dataSource);
+                IAcceptedSocketHandler handler = ServerAuthComposition.CreateClientVs22_28249(
+                    dataSource,
+                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Auth, message));
                 await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
             else
@@ -76,7 +78,8 @@ public static class ServerHost
 
                 IAcceptedSocketHandler handler = ServerGameComposition.CreateClientVs22_28249(
                     dataSource,
-                    new IPEndPoint(advertisedAddress, options.Port));
+                    new IPEndPoint(advertisedAddress, options.Port),
+                    diagnosticSink: message => WriteDiagnostic(ServerRunMode.Game, message));
                 await RunTransportAsync(handler, endpoint, cancellation.Token).ConfigureAwait(false);
             }
         }
@@ -126,6 +129,9 @@ public static class ServerHost
         advertisedAddress = bindAddress;
         return !IPAddress.Any.Equals(bindAddress) && !IPAddress.IPv6Any.Equals(bindAddress);
     }
+
+    private static void WriteDiagnostic(ServerRunMode mode, string message) =>
+        Console.WriteLine($"[{DateTimeOffset.UtcNow:O}] [{mode}] {message}");
 
     public static async Task RunTransportAsync(
         IAcceptedSocketHandler connectionHandler,
