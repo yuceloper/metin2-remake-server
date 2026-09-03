@@ -31,6 +31,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
     private readonly byte _channelNumber;
     private readonly LegacyClientCompatibilityProfile? _compatibilityProfile;
     private readonly IImprovedCipherProvider? _improvedCipherProvider;
+    private readonly Action<string>? _diagnosticSink;
 
     public static LegacyGameSocketHandler CreateClientVs22_28249(
         IServerTimeProvider timeProvider,
@@ -43,7 +44,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
         PlayerRuntimeRegistry? runtimeRegistry = null,
         byte channelNumber = 1,
-        IImprovedCipherProvider? improvedCipherProvider = null)
+        IImprovedCipherProvider? improvedCipherProvider = null,
+        Action<string>? diagnosticSink = null)
     {
         LegacyClientCompatibilityProfile profile = ClientVs22_28249CompatibilityProfile.Create();
         return new LegacyGameSocketHandler(
@@ -59,7 +61,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             runtimeRegistry,
             channelNumber,
             profile,
-            improvedCipherProvider);
+            improvedCipherProvider,
+            diagnosticSink);
     }
 
     public LegacyGameSocketHandler(
@@ -75,7 +78,8 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         PlayerRuntimeRegistry? runtimeRegistry = null,
         byte channelNumber = 1,
         LegacyClientCompatibilityProfile? compatibilityProfile = null,
-        IImprovedCipherProvider? improvedCipherProvider = null)
+        IImprovedCipherProvider? improvedCipherProvider = null,
+        Action<string>? diagnosticSink = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(handshakeTokenSource);
@@ -106,11 +110,14 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         _channelNumber = channelNumber;
         _compatibilityProfile = compatibilityProfile;
         _improvedCipherProvider = improvedCipherProvider;
+        _diagnosticSink = diagnosticSink;
     }
 
     public async ValueTask HandleAsync(Socket socket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(socket);
+        string connectionId = Guid.NewGuid().ToString("N")[..8];
+        Trace(connectionId, "connection-open");
 
         LegacySequenceProfile sequenceProfile = _compatibilityProfile?.Sequence ?? _sequenceProfile;
         var session = new GameSession(
@@ -138,7 +145,11 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
                 improvedSecurity,
                 PacketPhase.Login);
             improvedKeyAgreementTarget = improvedTarget;
-            handshakeCompleted = (_, ct) => improvedTarget.StartAsync(ct);
+            handshakeCompleted = async (_, ct) =>
+            {
+                await improvedTarget.StartAsync(ct).ConfigureAwait(false);
+                Trace(connectionId, "improved-offer-sent");
+            };
             deferPostHandshakePhase = true;
         }
         else if (_compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ClassicTea)
@@ -160,7 +171,11 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             handshakeCompleted,
             deferPostHandshakePhase);
         var selectionPublisher = new LegacyCharacterSelectionPublisher(connection.Output, _selectionService, _selectionWireContextProvider);
-        var loginTarget = new GameTokenLoginDispatchTarget(session, _loginService, selectionPublisher);
+        var loginTarget = new GameTokenLoginDispatchTarget(
+            session,
+            _loginService,
+            selectionPublisher,
+            success => Trace(connectionId, success ? "game-login-success" : "game-login-rejected"));
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
         var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
         var enterGameTarget = new GameEnterGameDispatchTarget(
@@ -183,10 +198,17 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         try
         {
             await handshakeTarget.StartAsync(cancellationToken).ConfigureAwait(false);
+            Trace(connectionId, "handshake-sent");
             _ = await connection.RunReceiveAsync(PacketDirection.ClientToServer, consumer, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Trace(connectionId, $"connection-failed type={exception.GetType().Name} phase={session.Phase}");
+            throw;
         }
         finally
         {
+            Trace(connectionId, $"connection-close phase={session.Phase}");
             if (session.ClearRuntimeEntity() is EntityId runtimeEntityId)
             {
                 _runtimeRegistry.Release(runtimeEntityId);
@@ -198,4 +220,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             catch (SocketException) { }
         }
     }
+
+    private void Trace(string connectionId, string message) =>
+        _diagnosticSink?.Invoke($"connection={connectionId} {message}");
 }
