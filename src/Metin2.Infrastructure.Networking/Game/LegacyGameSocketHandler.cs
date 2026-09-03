@@ -184,7 +184,12 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             selectionPublisher,
             success => Trace(connectionId, success ? "game-login-success" : "game-login-rejected"));
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
-        var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
+        var characterSelectTarget = new GameCharacterSelectDispatchTarget(
+            session,
+            connection.Output,
+            _characterSelectService,
+            bootstrapPublisher,
+            () => Trace(connectionId, "character-select-success"));
         var enterGameTarget = new GameEnterGameDispatchTarget(
             session,
             connection.Output,
