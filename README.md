@@ -122,6 +122,11 @@ The full source-verified ClientVS22 28249 Auth + Game path can be started with P
 docker compose up --build auth game
 ```
 
+The ClientVS22 channel checker is supported on the Game port. Configure the client with only
+CH1 at `13000` for this milestone; CH2-CH4 are not running yet. The Game listener recognizes
+the checker's `0xCE` TCP probe and returns a `0xD2` response reporting CH1 as `NORM`
+without entering the normal handshake pipeline.
+
 Development defaults:
 
 ```text
