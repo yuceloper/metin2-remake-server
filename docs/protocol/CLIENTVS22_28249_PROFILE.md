@@ -62,8 +62,10 @@ METIN2_POSTGRES_CONNECTION_STRING='Host=127.0.0.1;Database=metin2;Username=metin
 dotnet run --project src/Metin2.Server -- serve --mode game --bind 127.0.0.1 --port 13000
 ```
 
-Auth mode remains the existing handshake bootstrap; a valid one-time auth token must already
-exist in PostgreSQL for the game `TokenLogin` flow.
+Auth mode uses the same ClientVS22 profile and improved key-agreement flow. A successful
+`LoginRequest` verifies the PostgreSQL account password, issues a short-lived one-time token,
+and returns it in `LoginSuccess`. Game mode atomically consumes that token during
+`TokenLogin`. Both modes require `METIN2_POSTGRES_CONNECTION_STRING`.
 
 ## Remaining blockers
 
