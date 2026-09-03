@@ -11,11 +11,13 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
     private readonly GameSession _session;
     private readonly IGameLoginService _loginService;
     private readonly ILegacyCharacterSelectionPublisher _selectionPublisher;
+    private readonly Action<bool>? _loginResultSink;
 
     public GameTokenLoginDispatchTarget(
         GameSession session,
         IGameLoginService loginService,
-        ILegacyCharacterSelectionPublisher selectionPublisher)
+        ILegacyCharacterSelectionPublisher selectionPublisher,
+        Action<bool>? loginResultSink = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(loginService);
@@ -23,6 +25,7 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         _session = session;
         _loginService = loginService;
         _selectionPublisher = selectionPublisher;
+        _loginResultSink = loginResultSink;
     }
 
     public async ValueTask HandleAsync(TokenLogin packet, CancellationToken cancellationToken)
@@ -30,6 +33,8 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
         GameLoginResult result = await _loginService
             .LoginAsync(new GameLoginRequest(packet.Key, packet.Username), cancellationToken)
             .ConfigureAwait(false);
+
+        _loginResultSink?.Invoke(result.IsSuccess);
 
         if (!result.IsSuccess)
         {
@@ -55,7 +60,8 @@ public sealed class GameTokenLoginDispatchTarget : IPacketDispatchTarget
 public sealed class GameLoginRejectedException : Exception
 {
     public GameLoginRejectedException(string username)
-        : base($"Game login token was rejected for user '{username}'.")
+        : base("Game login token was rejected.")
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
     }
 }
