@@ -13,7 +13,8 @@ public static class ServerAuthComposition
     public static IAcceptedSocketHandler CreateClientVs22_28249(
         NpgsqlDataSource dataSource,
         IServerTimeProvider? timeProvider = null,
-        IHandshakeTokenSource? tokenSource = null)
+        IHandshakeTokenSource? tokenSource = null,
+        Action<string>? diagnosticSink = null)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
 
@@ -24,6 +25,7 @@ public static class ServerAuthComposition
         return LegacyAuthSocketHandler.CreateClientVs22_28249(
             timeProvider ?? new StopwatchServerTimeProvider(),
             tokenSource ?? new RandomHandshakeTokenSource(),
-            loginService);
+            loginService,
+            diagnosticSink: diagnosticSink);
     }
 }
