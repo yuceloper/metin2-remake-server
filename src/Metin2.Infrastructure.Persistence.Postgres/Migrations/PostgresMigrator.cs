@@ -6,6 +6,7 @@ namespace Metin2.Infrastructure.Persistence.Postgres.Migrations;
 public sealed class PostgresMigrator
 {
     private const string MigrationResourceMarker = ".Migrations.";
+    private const long MigrationAdvisoryLockId = 0x4D32524D;
     private readonly NpgsqlDataSource _dataSource;
     private readonly Assembly _migrationAssembly;
 
@@ -18,20 +19,45 @@ public sealed class PostgresMigrator
 
     public async Task MigrateAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureHistoryTableAsync(cancellationToken).ConfigureAwait(false);
+        await using NpgsqlConnection lockConnection = await _dataSource
+            .OpenConnectionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await SetMigrationLockAsync(lockConnection, acquire: true, cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<MigrationResource> migrations = DiscoverMigrations();
-        HashSet<string> appliedVersions = await LoadAppliedVersionsAsync(cancellationToken).ConfigureAwait(false);
-
-        foreach (MigrationResource migration in migrations)
+        try
         {
-            if (appliedVersions.Contains(migration.Version))
-            {
-                continue;
-            }
+            await EnsureHistoryTableAsync(cancellationToken).ConfigureAwait(false);
 
-            await ApplyAsync(migration, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<MigrationResource> migrations = DiscoverMigrations();
+            HashSet<string> appliedVersions = await LoadAppliedVersionsAsync(cancellationToken).ConfigureAwait(false);
+
+            foreach (MigrationResource migration in migrations)
+            {
+                if (appliedVersions.Contains(migration.Version))
+                {
+                    continue;
+                }
+
+                await ApplyAsync(migration, cancellationToken).ConfigureAwait(false);
+            }
         }
+        finally
+        {
+            await SetMigrationLockAsync(lockConnection, acquire: false, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task SetMigrationLockAsync(
+        NpgsqlConnection connection,
+        bool acquire,
+        CancellationToken cancellationToken)
+    {
+        string function = acquire ? "pg_advisory_lock" : "pg_advisory_unlock";
+        await using var command = new NpgsqlCommand(
+            $"SELECT {function}($1);",
+            connection);
+        command.Parameters.AddWithValue(MigrationAdvisoryLockId);
+        _ = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task EnsureHistoryTableAsync(CancellationToken cancellationToken)
