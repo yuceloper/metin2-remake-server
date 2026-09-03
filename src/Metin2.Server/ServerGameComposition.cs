@@ -1,5 +1,6 @@
 using System.Net;
-using Metin2.Infrastructure.Networking.Game;\nusing Metin2.Infrastructure.Networking.Compatibility;
+using Metin2.Infrastructure.Networking.Game;
+using Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Persistence.Postgres.Auth;
@@ -13,14 +14,16 @@ namespace Metin2.Server;
 public static class ServerGameComposition
 {
     public const string ConnectionStringEnvironmentVariable = "METIN2_POSTGRES_CONNECTION_STRING";
-    public const string AdvertisedAddressEnvironmentVariable = "METIN2_ADVERTISED_ADDRESS";\n    public const string EncryptionModeEnvironmentVariable = "METIN2_PACKET_ENCRYPTION";
+    public const string AdvertisedAddressEnvironmentVariable = "METIN2_ADVERTISED_ADDRESS";
+    public const string EncryptionModeEnvironmentVariable = "METIN2_PACKET_ENCRYPTION";
 
     public static IAcceptedSocketHandler CreateClientVs22_28249(
         NpgsqlDataSource dataSource,
         IPEndPoint advertisedEndPoint,
         IServerTimeProvider? timeProvider = null,
         IHandshakeTokenSource? tokenSource = null,
-        Action<string>? diagnosticSink = null)
+        Action<string>? diagnosticSink = null,
+        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
         ArgumentNullException.ThrowIfNull(advertisedEndPoint);
@@ -47,6 +50,7 @@ public static class ServerGameComposition
                 advertisedEndPoint.Address,
                 checked((ushort)advertisedEndPoint.Port)),
             new DefaultLegacyCharacterBootstrapRuntimeContextProvider(),
+            encryptionMode: encryptionMode,
             diagnosticSink: diagnosticSink);
 
         return new ClientVs22GameSocketRouter(
