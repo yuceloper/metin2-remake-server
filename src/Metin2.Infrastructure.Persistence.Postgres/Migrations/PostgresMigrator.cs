@@ -52,10 +52,10 @@ public sealed class PostgresMigrator
         bool acquire,
         CancellationToken cancellationToken)
     {
-        string function = acquire ? "pg_advisory_lock" : "pg_advisory_unlock";
-        await using var command = new NpgsqlCommand(
-            $"SELECT {function}($1);",
-            connection);
+        string sql = acquire
+            ? "SELECT pg_advisory_lock($1);"
+            : "SELECT pg_advisory_unlock($1);";
+        await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue(MigrationAdvisoryLockId);
         _ = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
     }
