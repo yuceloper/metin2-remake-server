@@ -108,16 +108,15 @@ public sealed class LegacyGameSocketHandlerTests
 
         await SendAllAsync(client, loginFrame);
         GameLoginRequest request = await loginService.Request.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        byte[] selection = await ReceiveExactAsync(client, 334);
+        byte[] selection = await ReceiveExactAsync(client, 333);
 
         Assert.AreEqual(0x11223344u, request.Token);
         Assert.AreEqual("player", request.Username);
         Assert.AreEqual((byte)0x5A, selection[0]);
         Assert.AreEqual((byte)2, selection[1]);
-        Assert.AreEqual((byte)0xA5, selection[2]);
-        Assert.AreEqual((byte)0xFD, selection[3]);
-        Assert.AreEqual((byte)LegacyPhaseCode.Select, selection[4]);
-        Assert.AreEqual((byte)0x20, selection[5]);
+        Assert.AreEqual((byte)0xFD, selection[2]);
+        Assert.AreEqual((byte)LegacyPhaseCode.Select, selection[3]);
+        Assert.AreEqual((byte)0x20, selection[4]);
 
         var select = new SelectCharacter(0);
         var selectFrame = new byte[3];

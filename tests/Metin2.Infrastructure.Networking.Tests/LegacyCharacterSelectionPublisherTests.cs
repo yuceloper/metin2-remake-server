@@ -38,17 +38,16 @@ public sealed class LegacyCharacterSelectionPublisherTests
 
             ReadResult read = await pipe.Reader.ReadAsync();
             ReadOnlySequence<byte> buffer = read.Buffer;
-            Assert.AreEqual(334L, buffer.Length);
+            Assert.AreEqual(333L, buffer.Length);
 
             byte[] frame = buffer.ToArray();
             Assert.AreEqual((byte)0x5A, frame[0]);
             Assert.AreEqual((byte)2, frame[1]);
-            Assert.AreEqual((byte)0xA5, frame[2]);
-            Assert.AreEqual((byte)0xFD, frame[3]);
-            Assert.AreEqual((byte)0x03, frame[4]);
-            Assert.AreEqual((byte)0x20, frame[5]);
+            Assert.AreEqual((byte)0xFD, frame[2]);
+            Assert.AreEqual((byte)0x03, frame[3]);
+            Assert.AreEqual((byte)0x20, frame[4]);
 
-            var reader = new PacketReader(frame.AsSpan(6, CharactersCodec.PayloadSize));
+            var reader = new PacketReader(frame.AsSpan(5, CharactersCodec.PayloadSize));
             Assert.IsTrue(CharactersCodec.TryRead(ref reader, out Characters characters));
             Assert.AreEqual(0, reader.Remaining);
 
