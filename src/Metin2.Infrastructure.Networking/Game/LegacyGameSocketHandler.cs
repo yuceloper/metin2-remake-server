@@ -44,6 +44,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         ILegacyCharacterBootstrapRuntimeContextProvider bootstrapRuntimeContextProvider,
         PlayerRuntimeRegistry? runtimeRegistry = null,
         byte channelNumber = 1,
+        LegacyPacketEncryptionMode encryptionMode = LegacyPacketEncryptionMode.ImprovedPacketEncryption,
         IImprovedCipherProvider? improvedCipherProvider = null,
         Action<string>? diagnosticSink = null)
     {
