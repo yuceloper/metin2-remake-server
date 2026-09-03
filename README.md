@@ -143,6 +143,12 @@ For a client on another computer, set `METIN2_ADVERTISED_ADDRESS` to the server'
 IPv4 address. The Compose defaults are development-only; do not expose the known default
 database or game credentials to an untrusted network.
 
+During a client attempt, Auth and Game write timestamped connection diagnostics such as
+`handshake-sent`, `improved-offer-sent`, `auth-login-success`,
+`game-login-success`, the final protocol phase, and exception type on failure. These records
+use a short random connection id and intentionally omit usernames, passwords, auth tokens,
+cipher keys and packet payloads.
+
 Both server processes apply embedded migrations during startup. A PostgreSQL advisory lock
 serializes concurrent migration attempts. Only the Auth Compose service opts into development
 account seeding; standalone/production runs do not seed unless
