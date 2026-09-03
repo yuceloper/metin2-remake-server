@@ -91,7 +91,6 @@ public sealed class LegacyCharacterSelectionPublisher : ILegacyCharacterSelectio
             guildNames[slot] = entry.GuildName;
         }
 
-        var empire = new Empire(snapshot.Empire);
         var phase = new Phase((byte)LegacyPhaseCode.Select);
         var characters = new Characters(summaries, guildIds, guildNames, context.Handle, context.RandomKey);
 
