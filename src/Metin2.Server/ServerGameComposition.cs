@@ -1,5 +1,5 @@
 using System.Net;
-using Metin2.Infrastructure.Networking.Game;
+using Metin2.Infrastructure.Networking.Game;\nusing Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Persistence.Postgres.Auth;
@@ -13,7 +13,7 @@ namespace Metin2.Server;
 public static class ServerGameComposition
 {
     public const string ConnectionStringEnvironmentVariable = "METIN2_POSTGRES_CONNECTION_STRING";
-    public const string AdvertisedAddressEnvironmentVariable = "METIN2_ADVERTISED_ADDRESS";
+    public const string AdvertisedAddressEnvironmentVariable = "METIN2_ADVERTISED_ADDRESS";\n    public const string EncryptionModeEnvironmentVariable = "METIN2_PACKET_ENCRYPTION";
 
     public static IAcceptedSocketHandler CreateClientVs22_28249(
         NpgsqlDataSource dataSource,
