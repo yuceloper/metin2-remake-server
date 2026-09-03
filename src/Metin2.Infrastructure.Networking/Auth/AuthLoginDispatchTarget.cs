@@ -15,18 +15,20 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
 
     private readonly LegacyPacketOutput _output;
     private readonly IAuthLoginService _loginService;
+    private readonly Action<bool>? _loginResultSink;
 
-    public AuthLoginDispatchTarget(PipeWriter output, IAuthLoginService loginService)
-        : this(new LegacyPacketOutput(output), loginService)
+    public AuthLoginDispatchTarget(PipeWriter output, IAuthLoginService loginService, Action<bool>? loginResultSink = null)
+        : this(new LegacyPacketOutput(output), loginService, loginResultSink)
     {
     }
 
-    public AuthLoginDispatchTarget(LegacyPacketOutput output, IAuthLoginService loginService)
+    public AuthLoginDispatchTarget(LegacyPacketOutput output, IAuthLoginService loginService, Action<bool>? loginResultSink = null)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(loginService);
         _output = output;
         _loginService = loginService;
+        _loginResultSink = loginResultSink;
     }
 
     public async ValueTask HandleAsync(LoginRequest packet, CancellationToken cancellationToken)
@@ -34,6 +36,8 @@ public sealed class AuthLoginDispatchTarget : IPacketDispatchTarget
         AuthLoginResult result = await _loginService
             .LoginAsync(new AuthLoginRequest(packet.Username, packet.Password), cancellationToken)
             .ConfigureAwait(false);
+
+        _loginResultSink?.Invoke(result.IsSuccess);
 
         if (result.IsSuccess)
         {
