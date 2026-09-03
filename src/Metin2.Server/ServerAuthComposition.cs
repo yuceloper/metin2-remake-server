@@ -1,4 +1,4 @@
-using Metin2.Infrastructure.Networking.Auth;
+using Metin2.Infrastructure.Networking.Auth;\nusing Metin2.Infrastructure.Networking.Compatibility;
 using Metin2.Infrastructure.Networking.Handshake;
 using Metin2.Infrastructure.Networking.Listeners;
 using Metin2.Infrastructure.Persistence.Postgres.Auth;
