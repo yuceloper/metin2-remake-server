@@ -55,6 +55,7 @@ public static class ServerGameComposition
 
         return new ClientVs22GameSocketRouter(
             gameHandler,
-            checked((ushort)advertisedEndPoint.Port));
+            checked((ushort)advertisedEndPoint.Port),
+            diagnosticSink: diagnosticSink);
     }
 }

@@ -129,7 +129,11 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
         var packetOutput = new LegacyPacketOutput(connection.Output, session);
 
         ImprovedKeyAgreementDispatchTarget? improvedKeyAgreementTarget = null;
-        Func<GameSession, CancellationToken, ValueTask>? handshakeCompleted = null;
+        Func<GameSession, CancellationToken, ValueTask>? handshakeCompleted = (_, _) =>
+        {
+            Trace(connectionId, "handshake-complete");
+            return ValueTask.CompletedTask;
+        };
         bool deferPostHandshakePhase = false;
 
         if (_compatibilityProfile?.EncryptionMode == LegacyPacketEncryptionMode.ImprovedPacketEncryption)
@@ -148,6 +152,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             improvedKeyAgreementTarget = improvedTarget;
             handshakeCompleted = async (_, ct) =>
             {
+                Trace(connectionId, "handshake-complete");
                 await improvedTarget.StartAsync(ct).ConfigureAwait(false);
                 Trace(connectionId, "improved-offer-sent");
             };
@@ -158,6 +163,7 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             // Reference boundary: the Login phase packet is plaintext, then the initial classic key activates.
             handshakeCompleted = (completedSession, _) =>
             {
+                Trace(connectionId, "handshake-complete");
                 completedSession.ActivateConfiguredPacketSecurity();
                 return ValueTask.CompletedTask;
             };
@@ -178,7 +184,12 @@ public sealed class LegacyGameSocketHandler : IAcceptedSocketHandler
             selectionPublisher,
             success => Trace(connectionId, success ? "game-login-success" : "game-login-rejected"));
         var bootstrapPublisher = new LegacyCharacterBootstrapPublisher(connection.Output, _bootstrapService, _bootstrapRuntimeContextProvider, _runtimeRegistry);
-        var characterSelectTarget = new GameCharacterSelectDispatchTarget(session, connection.Output, _characterSelectService, bootstrapPublisher);
+        var characterSelectTarget = new GameCharacterSelectDispatchTarget(
+            session,
+            connection.Output,
+            _characterSelectService,
+            bootstrapPublisher,
+            () => Trace(connectionId, "character-select-success"));
         var enterGameTarget = new GameEnterGameDispatchTarget(
             session,
             connection.Output,
